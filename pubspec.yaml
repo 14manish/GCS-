@@ -1,0 +1,43 @@
+name: gcs_flutter
+description: WINGSPAN GCS — Ground Control Station for Web, Desktop & Mobile
+publish_to: 'none'
+version: 2.1.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management
+  flutter_riverpod: ^2.5.1
+
+  # Navigation
+  go_router: ^14.0.2
+
+  # Maps
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+
+  # Charts (alternative to fl_chart, included both for flexibility)
+  fl_chart: ^0.68.0
+
+  # Fonts
+  google_fonts: ^6.2.1
+
+  # Icons (Lucide icon set matching React lucide-react)
+  # Location
+  geolocator: ^12.0.0
+
+  # MAVLink / Network
+  web_socket_channel: ^3.0.1
+  lucide_icons_flutter: ^3.1.14+2
+
+flutter:
+  uses-material-design: true
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
