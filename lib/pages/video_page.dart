@@ -14,7 +14,6 @@ class VideoPage extends ConsumerStatefulWidget {
 class _VideoPageState extends ConsumerState<VideoPage>
     with SingleTickerProviderStateMixin {
   int _activeStream = 0;
-  final bool _fullscreen = false;
   late AnimationController _scanCtrl;
 
   @override
