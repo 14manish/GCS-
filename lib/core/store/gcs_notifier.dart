@@ -45,9 +45,9 @@ class GcsNotifier extends StateNotifier<GcsState> {
   }
 
   void _tick() {
-    final now = DateTime.now().toUtc();
+    final ist = DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
     final timeStr =
-        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')} UTC';
+        '${ist.hour.toString().padLeft(2, '0')}:${ist.minute.toString().padLeft(2, '0')}:${ist.second.toString().padLeft(2, '0')} IST';
     final newExpiry = state.sessionExpiry > 0 ? state.sessionExpiry - 1 : 0;
     state = state.copyWith(utcTime: timeStr, sessionExpiry: newExpiry);
   }

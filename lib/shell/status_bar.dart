@@ -107,7 +107,7 @@ class GcsStatusBar extends ConsumerWidget {
 
   Widget _buildClock(String time, GcsThemeExtension gcs) {
     return SizedBox(
-      width: 90,
+      width: 100,
       child: Text(
         time,
         textAlign: TextAlign.right,
