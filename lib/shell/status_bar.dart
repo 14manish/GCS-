@@ -1,41 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/store/gcs_notifier.dart';
 import '../core/store/weather_provider.dart';
 import '../core/widgets/weather_dialog.dart';
 import '../core/theme/app_theme.dart';
 
-class GcsStatusBar extends ConsumerStatefulWidget {
+class GcsStatusBar extends ConsumerWidget {
   const GcsStatusBar({super.key});
 
   @override
-  ConsumerState<GcsStatusBar> createState() => _GcsStatusBarState();
-}
-
-class _GcsStatusBarState extends ConsumerState<GcsStatusBar>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _pulseCtrl;
-  late Animation<double> _pulse;
-
-  @override
-  void initState() {
-    super.initState();
-    _pulseCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true);
-    _pulse = Tween<double>(begin: 0.3, end: 1.0).animate(_pulseCtrl);
-  }
-
-  @override
-  void dispose() {
-    _pulseCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(gcsProvider);
     final gcs = context.gcs;
     final drone = s.drones.isNotEmpty ? s.drones.first : null;
@@ -59,7 +33,7 @@ class _GcsStatusBarState extends ConsumerState<GcsStatusBar>
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildWeatherButton(drone, gcs),
+              _buildWeatherButton(context, ref, drone, gcs),
               const SizedBox(width: 12),
               Container(
                 width: 1,
@@ -113,110 +87,7 @@ class _GcsStatusBarState extends ConsumerState<GcsStatusBar>
     );
   }
 
-  Widget _buildConnectionPill(String status, GcsThemeExtension gcs) {
-    Color color;
-    String label;
-    Widget indicator;
-
-    if (status == 'Connected') {
-      color = gcs.success;
-      label = 'CONNECTED';
-      indicator = AnimatedBuilder(
-        animation: _pulse,
-        builder: (_, __) => Opacity(
-          opacity: _pulse.value,
-          child: Container(
-            width: 6,
-            height: 6,
-            decoration:
-                BoxDecoration(color: gcs.success, shape: BoxShape.circle),
-          ),
-        ),
-      );
-    } else if (status == 'Connecting') {
-      color = gcs.warning;
-      label = 'CONNECTING';
-      indicator = SizedBox(
-        width: 10,
-        height: 10,
-        child: CircularProgressIndicator(strokeWidth: 1.5, color: gcs.warning),
-      );
-    } else {
-      color = gcs.secText;
-      label = 'DISCONNECTED';
-      indicator = Container(
-        width: 6,
-        height: 6,
-        decoration: BoxDecoration(color: gcs.danger, shape: BoxShape.circle),
-      );
-    }
-
-    return _pill(
-      child: Row(children: [
-        indicator,
-        const SizedBox(width: 4),
-        Text(label, style: _monoStyle(color, 10)),
-      ]),
-      gcs: gcs,
-    );
-  }
-
-  Widget _buildPill(
-      String label, String value, Color valueColor, GcsThemeExtension gcs) {
-    return _pill(
-      child: Row(children: [
-        Text(label, style: _monoStyle(gcs.accent, 10)),
-        const SizedBox(width: 3),
-        Text(value, style: _monoStyle(valueColor, 10, bold: true)),
-      ]),
-      gcs: gcs,
-    );
-  }
-
-  Widget _buildEncryptionPill(bool enc, GcsThemeExtension gcs) {
-    return _pill(
-      child: Row(children: [
-        Icon(
-          enc ? LucideIcons.lock : LucideIcons.unlock,
-          size: 10,
-          color: enc ? gcs.success : gcs.danger,
-        ),
-        const SizedBox(width: 4),
-        Text(
-          enc ? 'AES-256' : 'UNENCRYPTED',
-          style: _monoStyle(enc ? gcs.secText : gcs.danger, 10),
-        ),
-      ]),
-      gcs: gcs,
-    );
-  }
-
-  Widget _buildConflictButton(GcsThemeExtension gcs) {
-    return AnimatedBuilder(
-      animation: _pulse,
-      builder: (_, __) => GestureDetector(
-        onTap: () {},
-        child: Opacity(
-          opacity: 0.6 + _pulse.value * 0.4,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: gcs.danger.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(3),
-              border: Border.all(color: gcs.danger),
-            ),
-            child: Row(children: [
-              Icon(LucideIcons.alertTriangle, size: 10, color: gcs.danger),
-              const SizedBox(width: 4),
-              Text('CONFLICT', style: _monoStyle(gcs.danger, 10)),
-            ]),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildWeatherButton(drone, GcsThemeExtension gcs) {
+  Widget _buildWeatherButton(BuildContext context, WidgetRef ref, drone, GcsThemeExtension gcs) {
     final weather = ref.watch(weatherProvider);
     final lat = drone?.lat ?? 28.6139;
     final lng = drone?.lng ?? 77.2090;
@@ -247,18 +118,6 @@ class _GcsStatusBarState extends ConsumerState<GcsStatusBar>
           color: gcs.text,
         ),
       ),
-    );
-  }
-
-  Widget _pill({required Widget child, required GcsThemeExtension gcs}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: gcs.panels,
-        borderRadius: BorderRadius.circular(3),
-        border: Border.all(color: gcs.accent.withValues(alpha: 0.1)),
-      ),
-      child: child,
     );
   }
 

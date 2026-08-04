@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -25,9 +24,9 @@ class _MotorTestPageState extends ConsumerState<MotorTestPage> {
     if (!_safetyPropsRemoved) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Row(
-            children: const [
+            children: [
               Icon(LucideIcons.triangleAlert, color: Colors.black, size: 16),
               SizedBox(width: 8),
               Expanded(
@@ -44,7 +43,7 @@ class _MotorTestPageState extends ConsumerState<MotorTestPage> {
             ],
           ),
           backgroundColor: AppColors.tacticalAmber,
-          duration: const Duration(seconds: 2),
+          duration: Duration(seconds: 2),
         ),
       );
       return;
@@ -376,11 +375,11 @@ class _MotorTestPageState extends ConsumerState<MotorTestPage> {
                             ),
                           ),
                           // Frame Motor Spin Legend
-                          Wrap(
+                          const Wrap(
                             alignment: WrapAlignment.center,
                             spacing: 12,
                             runSpacing: 6,
-                            children: const [
+                            children: [
                               _LegendDot(
                                 color: AppColors.tacticalCyan,
                                 label: 'Motor 1 / A (CCW)',
@@ -411,274 +410,276 @@ class _MotorTestPageState extends ConsumerState<MotorTestPage> {
                     flex: 4,
                     child: HudGlassCard(
                       padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'MOTOR CONTROL PANEL',
-                            style: TextStyle(
-                              fontFamily: 'JetBrains Mono',
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.tacticalCyan,
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'MOTOR CONTROL PANEL',
+                              style: TextStyle(
+                                fontFamily: 'JetBrains Mono',
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.tacticalCyan,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 16),
+                            const SizedBox(height: 16),
 
-                          // Safety Throttle Slider
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'TEST THROTTLE LEVEL',
-                                style: TextStyle(
-                                  fontFamily: 'JetBrains Mono',
-                                  fontSize: 10,
-                                  color: AppColors.textSecond,
-                                ),
-                              ),
-                              Text(
-                                '${_throttlePercent.round()}%',
-                                style: const TextStyle(
-                                  fontFamily: 'JetBrains Mono',
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.tacticalCyan,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Slider(
-                            value: _throttlePercent,
-                            min: 5.0,
-                            max: 50.0,
-                            divisions: 45,
-                            activeColor: AppColors.tacticalCyan,
-                            inactiveColor: AppColors.glassPanel,
-                            onChanged: _safetyPropsRemoved
-                                ? (v) => setState(() => _throttlePercent = v)
-                                : null,
-                          ),
-
-                          const SizedBox(height: 10),
-
-                          // Duration Slider
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'TEST DURATION (SECONDS)',
-                                style: TextStyle(
-                                  fontFamily: 'JetBrains Mono',
-                                  fontSize: 10,
-                                  color: AppColors.textSecond,
-                                ),
-                              ),
-                              Text(
-                                '${_durationSec}s',
-                                style: const TextStyle(
-                                  fontFamily: 'JetBrains Mono',
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Slider(
-                            value: _durationSec.toDouble(),
-                            min: 1.0,
-                            max: 10.0,
-                            divisions: 9,
-                            activeColor: AppColors.tacticalGreen,
-                            inactiveColor: AppColors.glassPanel,
-                            onChanged: _safetyPropsRemoved
-                                ? (v) => setState(() => _durationSec = v.round())
-                                : null,
-                          ),
-
-                          const SizedBox(height: 16),
-                          const Divider(color: AppColors.glassBorder),
-                          const SizedBox(height: 10),
-
-                          // Individual Motor Action Grid
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  'INDIVIDUAL MOTOR TESTS (ONE BY ONE)',
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                  style: const TextStyle(
+                            // Safety Throttle Slider
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'TEST THROTTLE LEVEL',
+                                  style: TextStyle(
                                     fontFamily: 'JetBrains Mono',
                                     fontSize: 10,
+                                    color: AppColors.textSecond,
+                                  ),
+                                ),
+                                Text(
+                                  '${_throttlePercent.round()}%',
+                                  style: const TextStyle(
+                                    fontFamily: 'JetBrains Mono',
+                                    fontSize: 14,
                                     fontWeight: FontWeight.bold,
                                     color: AppColors.tacticalCyan,
                                   ),
                                 ),
+                              ],
+                            ),
+                            Slider(
+                              value: _throttlePercent,
+                              min: 5.0,
+                              max: 50.0,
+                              divisions: 45,
+                              activeColor: AppColors.tacticalCyan,
+                              inactiveColor: AppColors.glassPanel,
+                              onChanged: _safetyPropsRemoved
+                                  ? (v) => setState(() => _throttlePercent = v)
+                                  : null,
+                            ),
+
+                            const SizedBox(height: 10),
+
+                            // Duration Slider
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'TEST DURATION (SECONDS)',
+                                  style: TextStyle(
+                                    fontFamily: 'JetBrains Mono',
+                                    fontSize: 10,
+                                    color: AppColors.textSecond,
+                                  ),
+                                ),
+                                Text(
+                                  '${_durationSec}s',
+                                  style: const TextStyle(
+                                    fontFamily: 'JetBrains Mono',
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Slider(
+                              value: _durationSec.toDouble(),
+                              min: 1.0,
+                              max: 10.0,
+                              divisions: 9,
+                              activeColor: AppColors.tacticalGreen,
+                              inactiveColor: AppColors.glassPanel,
+                              onChanged: _safetyPropsRemoved
+                                  ? (v) => setState(() => _durationSec = v.round())
+                                  : null,
+                            ),
+
+                            const SizedBox(height: 16),
+                            const Divider(color: AppColors.glassBorder),
+                            const SizedBox(height: 10),
+
+                            // Individual Motor Action Grid
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Expanded(
+                                  child: Text(
+                                    'INDIVIDUAL MOTOR TESTS (ONE BY ONE)',
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                    style: TextStyle(
+                                      fontFamily: 'JetBrains Mono',
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.tacticalCyan,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _safetyPropsRemoved
+                                      ? 'TAP ANY MOTOR TO TEST'
+                                      : 'SAFETY LOCKED',
+                                  style: TextStyle(
+                                    fontFamily: 'JetBrains Mono',
+                                    fontSize: 8.5,
+                                    color: _safetyPropsRemoved
+                                        ? AppColors.tacticalGreen
+                                        : AppColors.tacticalAmber,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+
+                            GridView(
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                mainAxisExtent: 54,
+                                crossAxisSpacing: 8,
+                                mainAxisSpacing: 8,
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                _safetyPropsRemoved
-                                    ? 'TAP ANY MOTOR TO TEST'
-                                    : 'SAFETY LOCKED',
-                                style: TextStyle(
-                                  fontFamily: 'JetBrains Mono',
-                                  fontSize: 8.5,
-                                  color: _safetyPropsRemoved
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              children: [
+                                _MotorTestBtn(
+                                  label: 'TEST MOTOR A',
+                                  subLabel: 'Motor 1 • Top Right (CCW)',
+                                  color: AppColors.tacticalCyan,
+                                  enabled: true,
+                                  isSpinning: (drone?.motor1Rpm ?? 0) > 0,
+                                  rpm: drone?.motor1Rpm ?? 0,
+                                  onPressed: () => _onMotorTestClick(1),
+                                ),
+                                _MotorTestBtn(
+                                  label: 'TEST MOTOR B',
+                                  subLabel: 'Motor 2 • Bottom Right (CW)',
+                                  color: AppColors.tacticalGreen,
+                                  enabled: true,
+                                  isSpinning: (drone?.motor2Rpm ?? 0) > 0,
+                                  rpm: drone?.motor2Rpm ?? 0,
+                                  onPressed: () => _onMotorTestClick(2),
+                                ),
+                                _MotorTestBtn(
+                                  label: 'TEST MOTOR C',
+                                  subLabel: 'Motor 3 • Bottom Left (CCW)',
+                                  color: AppColors.tacticalAmber,
+                                  enabled: true,
+                                  isSpinning: (drone?.motor3Rpm ?? 0) > 0,
+                                  rpm: drone?.motor3Rpm ?? 0,
+                                  onPressed: () => _onMotorTestClick(3),
+                                ),
+                                _MotorTestBtn(
+                                  label: 'TEST MOTOR D',
+                                  subLabel: 'Motor 4 • Top Left (CW)',
+                                  color: AppColors.tacticalRed,
+                                  enabled: true,
+                                  isSpinning: (drone?.motor4Rpm ?? 0) > 0,
+                                  rpm: drone?.motor4Rpm ?? 0,
+                                  onPressed: () => _onMotorTestClick(4),
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 14),
+
+                            // SPIN ALL 4 MOTORS TOGETHER (Simultaneous Action Button)
+                            SizedBox(
+                              width: double.infinity,
+                              height: 38,
+                              child: ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.tacticalCyan,
+                                  foregroundColor: Colors.black,
+                                  elevation: 4,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                ),
+                                icon: const Icon(LucideIcons.fan, size: 16),
+                                label: const Text(
+                                  'SPIN ALL 4 MOTORS TOGETHER (SIMULTANEOUS)',
+                                  style: TextStyle(
+                                    fontFamily: 'JetBrains Mono',
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                onPressed: _onTestAllTogetherClick,
+                               ),
+                            ),
+
+                            const SizedBox(height: 8),
+
+                            // TEST MOTORS IN SEQUENCE (A -> B -> C -> D)
+                            SizedBox(
+                              width: double.infinity,
+                              height: 34,
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(
+                                    color: _safetyPropsRemoved
+                                        ? AppColors.tacticalGreen
+                                        : AppColors.glassBorder,
+                                  ),
+                                  foregroundColor: _safetyPropsRemoved
                                       ? AppColors.tacticalGreen
-                                      : AppColors.tacticalAmber,
-                                  fontWeight: FontWeight.bold,
+                                      : AppColors.textSecond,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
                                 ),
+                                icon: const Icon(LucideIcons.play, size: 14),
+                                label: const Text(
+                                  'TEST IN SEQUENCE (A → B → C → D)',
+                                  style: TextStyle(
+                                    fontFamily: 'JetBrains Mono',
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                onPressed: _onTestSequenceClick,
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-
-                          GridView(
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              mainAxisExtent: 54,
-                              crossAxisSpacing: 8,
-                              mainAxisSpacing: 8,
                             ),
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            children: [
-                              _MotorTestBtn(
-                                label: 'TEST MOTOR A',
-                                subLabel: 'Motor 1 • Top Right (CCW)',
-                                color: AppColors.tacticalCyan,
-                                enabled: true,
-                                isSpinning: (drone?.motor1Rpm ?? 0) > 0,
-                                rpm: drone?.motor1Rpm ?? 0,
-                                onPressed: () => _onMotorTestClick(1),
-                              ),
-                              _MotorTestBtn(
-                                label: 'TEST MOTOR B',
-                                subLabel: 'Motor 2 • Bottom Right (CW)',
-                                color: AppColors.tacticalGreen,
-                                enabled: true,
-                                isSpinning: (drone?.motor2Rpm ?? 0) > 0,
-                                rpm: drone?.motor2Rpm ?? 0,
-                                onPressed: () => _onMotorTestClick(2),
-                              ),
-                              _MotorTestBtn(
-                                label: 'TEST MOTOR C',
-                                subLabel: 'Motor 3 • Bottom Left (CCW)',
-                                color: AppColors.tacticalAmber,
-                                enabled: true,
-                                isSpinning: (drone?.motor3Rpm ?? 0) > 0,
-                                rpm: drone?.motor3Rpm ?? 0,
-                                onPressed: () => _onMotorTestClick(3),
-                              ),
-                              _MotorTestBtn(
-                                label: 'TEST MOTOR D',
-                                subLabel: 'Motor 4 • Top Left (CW)',
-                                color: AppColors.tacticalRed,
-                                enabled: true,
-                                isSpinning: (drone?.motor4Rpm ?? 0) > 0,
-                                rpm: drone?.motor4Rpm ?? 0,
-                                onPressed: () => _onMotorTestClick(4),
-                              ),
-                            ],
-                          ),
 
-                          const Spacer(),
+                            const SizedBox(height: 8),
 
-                          // SPIN ALL 4 MOTORS TOGETHER (Simultaneous Action Button)
-                          SizedBox(
-                            width: double.infinity,
-                            height: 38,
-                            child: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.tacticalCyan,
-                                foregroundColor: Colors.black,
-                                elevation: 4,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(6),
+                            // Emergency Stop All Motors Kill Switch
+                            SizedBox(
+                              width: double.infinity,
+                              height: 38,
+                              child: ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.tacticalRed,
+                                  foregroundColor: Colors.white,
+                                  elevation: 4,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
                                 ),
-                              ),
-                              icon: const Icon(LucideIcons.fan, size: 16),
-                              label: const Text(
-                                'SPIN ALL 4 MOTORS TOGETHER (SIMULTANEOUS)',
-                                style: TextStyle(
-                                  fontFamily: 'JetBrains Mono',
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 0.5,
+                                icon: const Icon(LucideIcons.octagonAlert, size: 16),
+                                label: const Text(
+                                  'EMERGENCY STOP ALL MOTORS',
+                                  style: TextStyle(
+                                    fontFamily: 'JetBrains Mono',
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 1.0,
+                                  ),
                                 ),
+                                onPressed: () => ref
+                                    .read(gcsProvider.notifier)
+                                    .emergencyStopAllMotors(),
                               ),
-                              onPressed: _onTestAllTogetherClick,
                             ),
-                          ),
-
-                          const SizedBox(height: 8),
-
-                          // TEST MOTORS IN SEQUENCE (A -> B -> C -> D)
-                          SizedBox(
-                            width: double.infinity,
-                            height: 34,
-                            child: OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(
-                                side: BorderSide(
-                                  color: _safetyPropsRemoved
-                                      ? AppColors.tacticalGreen
-                                      : AppColors.glassBorder,
-                                ),
-                                foregroundColor: _safetyPropsRemoved
-                                    ? AppColors.tacticalGreen
-                                    : AppColors.textSecond,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                              ),
-                              icon: const Icon(LucideIcons.play, size: 14),
-                              label: const Text(
-                                'TEST IN SEQUENCE (A → B → C → D)',
-                                style: TextStyle(
-                                  fontFamily: 'JetBrains Mono',
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              onPressed: _onTestSequenceClick,
-                            ),
-                          ),
-
-                          const SizedBox(height: 8),
-
-                          // Emergency Stop All Motors Kill Switch
-                          SizedBox(
-                            width: double.infinity,
-                            height: 38,
-                            child: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.tacticalRed,
-                                foregroundColor: Colors.white,
-                                elevation: 4,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                              ),
-                              icon: const Icon(LucideIcons.octagonAlert, size: 16),
-                              label: const Text(
-                                'EMERGENCY STOP ALL MOTORS',
-                                style: TextStyle(
-                                  fontFamily: 'JetBrains Mono',
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 1.0,
-                                ),
-                              ),
-                              onPressed: () => ref
-                                  .read(gcsProvider.notifier)
-                                  .emergencyStopAllMotors(),
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -690,69 +691,71 @@ class _MotorTestPageState extends ConsumerState<MotorTestPage> {
                     flex: 3,
                     child: HudGlassCard(
                       padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'LIVE ESC & RPM TELEMETRY',
-                            style: TextStyle(
-                              fontFamily: 'JetBrains Mono',
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'LIVE ESC & RPM TELEMETRY',
+                              style: TextStyle(
+                                fontFamily: 'JetBrains Mono',
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.tacticalCyan,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            _RpmProgressCard(
+                              label: 'MOTOR 1 (A)',
+                              rpm: drone?.motor1Rpm ?? 0,
                               color: AppColors.tacticalCyan,
                             ),
-                          ),
-                          const SizedBox(height: 16),
+                            const SizedBox(height: 12),
+                            _RpmProgressCard(
+                              label: 'MOTOR 2 (B)',
+                              rpm: drone?.motor2Rpm ?? 0,
+                              color: AppColors.tacticalGreen,
+                            ),
+                            const SizedBox(height: 12),
+                            _RpmProgressCard(
+                              label: 'MOTOR 3 (C)',
+                              rpm: drone?.motor3Rpm ?? 0,
+                              color: AppColors.tacticalAmber,
+                            ),
+                            const SizedBox(height: 12),
+                            _RpmProgressCard(
+                              label: 'MOTOR 4 (D)',
+                              rpm: drone?.motor4Rpm ?? 0,
+                              color: AppColors.tacticalRed,
+                            ),
 
-                          _RpmProgressCard(
-                            label: 'MOTOR 1 (A)',
-                            rpm: drone?.motor1Rpm ?? 0,
-                            color: AppColors.tacticalCyan,
-                          ),
-                          const SizedBox(height: 12),
-                          _RpmProgressCard(
-                            label: 'MOTOR 2 (B)',
-                            rpm: drone?.motor2Rpm ?? 0,
-                            color: AppColors.tacticalGreen,
-                          ),
-                          const SizedBox(height: 12),
-                          _RpmProgressCard(
-                            label: 'MOTOR 3 (C)',
-                            rpm: drone?.motor3Rpm ?? 0,
-                            color: AppColors.tacticalAmber,
-                          ),
-                          const SizedBox(height: 12),
-                          _RpmProgressCard(
-                            label: 'MOTOR 4 (D)',
-                            rpm: drone?.motor4Rpm ?? 0,
-                            color: AppColors.tacticalRed,
-                          ),
+                            const SizedBox(height: 10),
+                            const Divider(color: AppColors.glassBorder),
+                            const SizedBox(height: 10),
 
-                          const Spacer(),
-                          const Divider(color: AppColors.glassBorder),
-                          const SizedBox(height: 10),
-
-                          // ESC Status Metrics
-                          _EscMetricRow(
-                            label: 'ESC VOLTAGE',
-                            value: '${(drone?.voltage ?? 22.2).toStringAsFixed(1)} V',
-                          ),
-                          const SizedBox(height: 6),
-                          _EscMetricRow(
-                            label: 'ESC TOTAL CURRENT',
-                            value: '${(drone?.current ?? 18.5).toStringAsFixed(1)} A',
-                          ),
-                          const SizedBox(height: 6),
-                          _EscMetricRow(
-                            label: 'ESC TEMPERATURE',
-                            value: '34.2 °C',
-                          ),
-                          const SizedBox(height: 6),
-                          _EscMetricRow(
-                            label: 'PWM SIGNAL FREQ',
-                            value: '400 Hz',
-                          ),
-                        ],
+                            // ESC Status Metrics
+                            _EscMetricRow(
+                              label: 'ESC VOLTAGE',
+                              value: '${(drone?.voltage ?? 22.2).toStringAsFixed(1)} V',
+                            ),
+                            const SizedBox(height: 6),
+                            _EscMetricRow(
+                              label: 'ESC TOTAL CURRENT',
+                              value: '${(drone?.current ?? 18.5).toStringAsFixed(1)} A',
+                            ),
+                            const SizedBox(height: 6),
+                            const _EscMetricRow(
+                              label: 'ESC TEMPERATURE',
+                              value: '34.2 °C',
+                            ),
+                            const SizedBox(height: 6),
+                            const _EscMetricRow(
+                              label: 'PWM SIGNAL FREQ',
+                              value: '400 Hz',
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
