@@ -1,6 +1,6 @@
-# WINGSPAN Ground Control Station (GCS)
+# WINGSPANN Ground Control Station (GCS)
 
-Welcome to the WINGSPAN Ground Control Station (GCS) frontend repository. This application is a robust, cross-platform dashboard built to monitor, control, and communicate with unmanned vehicles. 
+Welcome to the WINGSPANN Ground Control Station (GCS) frontend repository. This application is a robust, cross-platform dashboard built to monitor, control, and communicate with unmanned vehicles. 
 
 ## Technology Stack
 
