@@ -5,10 +5,10 @@ import '../../pages/fly_view/fly_view.dart';
 import '../../pages/mission_page.dart';
 import '../../pages/simulation_page.dart';
 import '../../pages/vehicles_page.dart';
+import '../../pages/motor_test_page.dart';
 import '../../pages/telemetry_page.dart';
 import '../../pages/alerts_page.dart';
 import '../../pages/parameters_page.dart';
-import '../../pages/video_page.dart';
 import '../../pages/diagnostics_page.dart';
 import '../../pages/logs_page.dart';
 import '../../pages/settings_page.dart';
@@ -37,6 +37,9 @@ final appRouter = GoRouter(
           GoRoute(path: '/vehicles', builder: (_, __) => const VehiclesPage()),
         ]),
         StatefulShellBranch(routes: [
+          GoRoute(path: '/motors', builder: (_, __) => const MotorTestPage()),
+        ]),
+        StatefulShellBranch(routes: [
           GoRoute(
               path: '/telemetry', builder: (_, __) => const TelemetryPage()),
         ]),
@@ -46,9 +49,6 @@ final appRouter = GoRouter(
         StatefulShellBranch(routes: [
           GoRoute(
               path: '/parameters', builder: (_, __) => const ParametersPage()),
-        ]),
-        StatefulShellBranch(routes: [
-          GoRoute(path: '/video', builder: (_, __) => const VideoPage()),
         ]),
         StatefulShellBranch(routes: [
           GoRoute(

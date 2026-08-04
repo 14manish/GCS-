@@ -252,6 +252,180 @@ class TelemetryPage extends ConsumerWidget {
               ],
             ),
           ),
+          // ── MAVLink Inspector Panel ───────────────────────────
+          _MavlinkInspector(log: s.mavlinkLog, gcs: gcs),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// MAVLink Inspector Panel
+// ─────────────────────────────────────────────
+class _MavlinkInspector extends StatelessWidget {
+  const _MavlinkInspector({required this.log, required this.gcs});
+  final List<String> log;
+  final GcsThemeExtension gcs;
+
+  // Colour-code by message type
+  Color _colorFor(String entry) {
+    if (entry.contains('HEARTBEAT')) return const Color(0xFF00E5FF);
+    if (entry.contains('ATTITUDE')) return const Color(0xFF69FF47);
+    if (entry.contains('VFR_HUD')) return const Color(0xFFFFD740);
+    if (entry.contains('GLOBAL_POS')) return const Color(0xFF40C4FF);
+    if (entry.contains('SYS_STATUS')) return const Color(0xFFFF6E40);
+    if (entry.contains('GPS_RAW')) return const Color(0xFF64FFDA);
+    if (entry.contains('RADIO')) return const Color(0xFFE040FB);
+    return const Color(0xFFB0BEC5);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 220,
+      decoration: BoxDecoration(
+        color: const Color(0xFF060B14),
+        border: Border(
+          top: BorderSide(color: gcs.accent.withValues(alpha: 0.2)),
+        ),
+      ),
+      child: Column(
+        children: [
+          // Header bar
+          Container(
+            height: 34,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              color: gcs.panels,
+              border: Border(
+                bottom: BorderSide(color: gcs.accent.withValues(alpha: 0.12)),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    color: log.isNotEmpty
+                        ? const Color(0xFF69FF47)
+                        : const Color(0xFF444444),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'MAVLINK INSPECTOR',
+                  style: TextStyle(
+                    fontFamily: 'JetBrains Mono',
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: gcs.accent,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: gcs.accent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                  child: Text(
+                    '${log.length} msgs',
+                    style: TextStyle(
+                      fontFamily: 'JetBrains Mono',
+                      fontSize: 9,
+                      color: gcs.secText,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                // Legend chips
+                for (final e in [
+                  ('HB', const Color(0xFF00E5FF)),
+                  ('ATT', const Color(0xFF69FF47)),
+                  ('HUD', const Color(0xFFFFD740)),
+                  ('GPS', const Color(0xFF40C4FF)),
+                  ('SYS', const Color(0xFFFF6E40)),
+                ])
+                  Container(
+                    margin: const EdgeInsets.only(left: 5),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: e.$2.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(2),
+                      border: Border.all(color: e.$2.withValues(alpha: 0.3)),
+                    ),
+                    child: Text(
+                      e.$1,
+                      style: TextStyle(
+                        fontFamily: 'JetBrains Mono',
+                        fontSize: 8,
+                        color: e.$2,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          // Message list
+          Expanded(
+            child: log.isEmpty
+                ? Center(
+                    child: Text(
+                      'Waiting for MAVLink frames…',
+                      style: TextStyle(
+                        fontFamily: 'JetBrains Mono',
+                        fontSize: 11,
+                        color: gcs.secText.withValues(alpha: 0.4),
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    reverse: false,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    itemCount: log.length,
+                    itemBuilder: (_, i) {
+                      final entry = log[i];
+                      final color = _colorFor(entry);
+                      // Split: [timestamp] MSGTYPE  detail
+                      final parts = entry.split(RegExp(r'\s{2,}'));
+                      final tsAndType = parts.isNotEmpty ? parts[0] : entry;
+                      final detail =
+                          parts.length > 1 ? parts.sublist(1).join('  ') : '';
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 1.5),
+                        child: RichText(
+                          text: TextSpan(
+                            style: const TextStyle(
+                              fontFamily: 'JetBrains Mono',
+                              fontSize: 10.5,
+                              height: 1.45,
+                            ),
+                            children: [
+                              TextSpan(
+                                text: tsAndType,
+                                style: TextStyle(
+                                    color: color, fontWeight: FontWeight.bold),
+                              ),
+                              if (detail.isNotEmpty)
+                                TextSpan(
+                                  text: '  $detail',
+                                  style:
+                                      const TextStyle(color: Color(0xFF90A4AE)),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
         ],
       ),
     );

@@ -100,9 +100,9 @@ class _ConnectionPageState extends ConsumerState<ConnectionPage>
                             borderRadius: BorderRadius.circular(4),
                           ),
                           tabs: const [
-                            Tab(text: 'SERIAL'),
-                            Tab(text: 'UDP'),
-                            Tab(text: 'AUTO'),
+                            Tab(key: ValueKey('tab_serial'), text: 'SERIAL'),
+                            Tab(key: ValueKey('tab_udp'), text: 'UDP'),
+                            Tab(key: ValueKey('tab_auto'), text: 'AUTO'),
                           ],
                         ),
                       ),
@@ -116,6 +116,7 @@ class _ConnectionPageState extends ConsumerState<ConnectionPage>
                     controller: _tabCtrl,
                     children: [
                       _SerialPanel(
+                        key: const ValueKey('serial'),
                         port: _selectedPort,
                         baud: _baudRate,
                         gcs: gcs,
@@ -123,6 +124,7 @@ class _ConnectionPageState extends ConsumerState<ConnectionPage>
                         onBaudChanged: (v) => setState(() => _baudRate = v),
                       ),
                       _UdpPanel(
+                        key: const ValueKey('udp'),
                         ip: _hostIp,
                         port: _udpPort,
                         gcs: gcs,
@@ -130,6 +132,7 @@ class _ConnectionPageState extends ConsumerState<ConnectionPage>
                         onPortChanged: (v) => setState(() => _udpPort = v),
                       ),
                       _AutoPanel(
+                        key: const ValueKey('auto'),
                         s: s,
                         gcs: gcs,
                         onScan: () =>
@@ -196,31 +199,7 @@ class _ConnectionPageState extends ConsumerState<ConnectionPage>
                                 )),
                       ),
                     ),
-                    if (isConnected) ...[
-                      const SizedBox(height: 8),
-                      // Session timer
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: gcs.success.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(
-                              color: gcs.success.withValues(alpha: 0.2)),
-                        ),
-                        child: Row(children: [
-                          Icon(LucideIcons.clock, size: 12, color: gcs.success),
-                          const SizedBox(width: 8),
-                          Text(
-                              'Session: ${s.sessionExpiry ~/ 60}m ${s.sessionExpiry % 60}s',
-                              style: TextStyle(
-                                fontFamily: 'JetBrains Mono',
-                                fontSize: 10,
-                                color: gcs.success,
-                              )),
-                        ]),
-                      ),
-                    ],
+
                   ]),
                 ),
               ],
@@ -236,7 +215,36 @@ class _ConnectionPageState extends ConsumerState<ConnectionPage>
                 children: [
                   // Status indicator
                   _ConnectionStatusCard(s: s, gcs: gcs),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
+
+                  // Last error banner (shown when connection fails)
+                  if (s.lastError != null) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: gcs.danger.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                            color: gcs.danger.withValues(alpha: 0.35)),
+                      ),
+                      child: Row(children: [
+                        Icon(LucideIcons.alertTriangle,
+                            size: 14, color: gcs.danger),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(s.lastError!,
+                              style: TextStyle(
+                                fontFamily: 'JetBrains Mono',
+                                fontSize: 10,
+                                color: gcs.danger,
+                              )),
+                        ),
+                      ]),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
 
                   // Fleet summary
                   Text('CONNECTED FLEET',
@@ -260,7 +268,8 @@ class _ConnectionPageState extends ConsumerState<ConnectionPage>
 
 class _SerialPanel extends StatelessWidget {
   const _SerialPanel(
-      {required this.port,
+      {super.key,
+      required this.port,
       required this.baud,
       required this.gcs,
       required this.onPortChanged,
@@ -273,57 +282,64 @@ class _SerialPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _Label('SERIAL PORT', gcs),
-        _Dropdown<String>(
-          value: port,
-          items: const [
-            'COM3',
-            'COM4',
-            'COM5',
-            'COM8',
-            'COM12',
-            '/dev/ttyUSB0',
-            '/dev/ttyACM0'
-          ],
-          gcs: gcs,
-          onChanged: (v) => onPortChanged(v!),
-        ),
-        const SizedBox(height: 12),
-        _Label('BAUD RATE', gcs),
-        _Dropdown<int>(
-          value: baud,
-          items: const [
-            9600,
-            19200,
-            38400,
-            57600,
-            115200,
-            230400,
-            460800,
-            921600
-          ],
-          gcs: gcs,
-          onChanged: (v) => onBaudChanged(v!),
-        ),
-        const SizedBox(height: 12),
-        _Label('FLOW CONTROL', gcs),
-        _Dropdown<String>(
-          value: 'None',
-          items: const ['None', 'Hardware (RTS/CTS)', 'Software (XON/XOFF)'],
-          gcs: gcs,
-          onChanged: (_) {},
-        ),
-      ]),
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _Label('SERIAL PORT', gcs),
+          _Dropdown<String>(
+            key: const ValueKey('dropdown_port'),
+            value: port,
+            items: const [
+              'COM3',
+              'COM4',
+              'COM5',
+              'COM8',
+              'COM12',
+              '/dev/ttyUSB0',
+              '/dev/ttyACM0'
+            ],
+            gcs: gcs,
+            onChanged: (v) => onPortChanged(v!),
+          ),
+          const SizedBox(height: 12),
+          _Label('BAUD RATE', gcs),
+          _Dropdown<int>(
+            key: const ValueKey('dropdown_baud'),
+            value: baud,
+            items: const [
+              9600,
+              19200,
+              38400,
+              57600,
+              115200,
+              230400,
+              460800,
+              921600
+            ],
+            gcs: gcs,
+            onChanged: (v) => onBaudChanged(v!),
+          ),
+          const SizedBox(height: 12),
+          _Label('FLOW CONTROL', gcs),
+          _Dropdown<String>(
+            key: const ValueKey('dropdown_flow'),
+            value: 'None',
+            items: const ['None', 'Hardware (RTS/CTS)', 'Software (XON/XOFF)'],
+            gcs: gcs,
+            onChanged: (_) {},
+          ),
+          const SizedBox(height: 16),
+        ]),
+      ),
     );
   }
 }
 
 class _UdpPanel extends StatelessWidget {
   const _UdpPanel(
-      {required this.ip,
+      {super.key,
+      required this.ip,
       required this.port,
       required this.gcs,
       required this.onIpChanged,
@@ -336,50 +352,57 @@ class _UdpPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _Label('HOST IP ADDRESS', gcs),
-        TextField(
-          onChanged: onIpChanged,
-          controller: TextEditingController(text: ip),
-          style: TextStyle(
-              fontFamily: 'JetBrains Mono', fontSize: 11, color: gcs.text),
-          decoration: const InputDecoration(hintText: '127.0.0.1'),
-        ),
-        const SizedBox(height: 12),
-        _Label('UDP PORT', gcs),
-        TextField(
-          onChanged: (v) => onPortChanged(int.tryParse(v) ?? port),
-          controller: TextEditingController(text: '$port'),
-          keyboardType: TextInputType.number,
-          style: TextStyle(
-              fontFamily: 'JetBrains Mono', fontSize: 11, color: gcs.text),
-          decoration: const InputDecoration(hintText: '14550'),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: AppColors.accent.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: AppColors.accent.withValues(alpha: 0.15)),
-          ),
-          child: Text(
-            'Default: 127.0.0.1:14550 for SITL / MAVProxy\n'
-            'For real hardware: use vehicle IP / router IP',
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _Label('HOST IP ADDRESS', gcs),
+          TextField(
+            onChanged: onIpChanged,
+            controller: TextEditingController(text: ip),
             style: TextStyle(
-                fontFamily: 'JetBrains Mono', fontSize: 9, color: gcs.secText),
+                fontFamily: 'JetBrains Mono', fontSize: 11, color: gcs.text),
+            decoration: const InputDecoration(hintText: '127.0.0.1'),
           ),
-        ),
-      ]),
+          const SizedBox(height: 12),
+          _Label('UDP PORT', gcs),
+          TextField(
+            onChanged: (v) => onPortChanged(int.tryParse(v) ?? port),
+            controller: TextEditingController(text: '$port'),
+            keyboardType: TextInputType.number,
+            style: TextStyle(
+                fontFamily: 'JetBrains Mono', fontSize: 11, color: gcs.text),
+            decoration: const InputDecoration(hintText: '14550'),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.accent.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(4),
+              border:
+                  Border.all(color: AppColors.accent.withValues(alpha: 0.15)),
+            ),
+            child: Text(
+              'Default: 127.0.0.1:14550 for SITL / MAVProxy\n'
+              'For real hardware: use vehicle IP / router IP',
+              style: TextStyle(
+                  fontFamily: 'JetBrains Mono',
+                  fontSize: 9,
+                  color: gcs.secText),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ]),
+      ),
     );
   }
 }
 
 class _AutoPanel extends StatelessWidget {
   const _AutoPanel(
-      {required this.s,
+      {super.key,
+      required this.s,
       required this.gcs,
       required this.onScan,
       required this.onConnect});
@@ -390,88 +413,93 @@ class _AutoPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Expanded(
-              child: Text('AUTO-SCAN DEVICES',
-                  style: TextStyle(
-                    fontFamily: 'JetBrains Mono',
-                    fontSize: 10,
-                    color: gcs.secText,
-                    letterSpacing: 1.2,
-                  ))),
-          GestureDetector(
-            onTap: s.isScanning ? null : onScan,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: gcs.accent.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: gcs.accent.withValues(alpha: 0.3)),
-              ),
-              child: s.isScanning
-                  ? Row(children: [
-                      SizedBox(
-                          width: 10,
-                          height: 10,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 1.5, color: gcs.accent)),
-                      const SizedBox(width: 6),
-                      Text('SCANNING',
-                          style: TextStyle(
-                            fontFamily: 'JetBrains Mono',
-                            fontSize: 9,
-                            color: gcs.accent,
-                          )),
-                    ])
-                  : Text('SCAN',
-                      style: TextStyle(
-                        fontFamily: 'JetBrains Mono',
-                        fontSize: 10,
-                        color: gcs.accent,
-                      )),
-            ),
-          ),
-        ]),
-        const SizedBox(height: 12),
-        ...s.autoScanList.map<Widget>((device) => GestureDetector(
-              onTap: () => onConnect(device['port']!),
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Expanded(
+                child: Text('AUTO-SCAN DEVICES',
+                    style: TextStyle(
+                      fontFamily: 'JetBrains Mono',
+                      fontSize: 10,
+                      color: gcs.secText,
+                      letterSpacing: 1.2,
+                    ))),
+            GestureDetector(
+              onTap: s.isScanning ? null : onScan,
               child: Container(
-                margin: const EdgeInsets.only(bottom: 6),
-                padding: const EdgeInsets.all(10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: gcs.bg,
+                  color: gcs.accent.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: gcs.accent.withValues(alpha: 0.15)),
+                  border: Border.all(color: gcs.accent.withValues(alpha: 0.3)),
                 ),
-                child: Row(children: [
-                  Icon(LucideIcons.cpu, size: 14, color: gcs.accent),
-                  const SizedBox(width: 8),
-                  Expanded(
-                      child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                        Text(device['name']!,
-                            style: TextStyle(
-                              fontFamily: 'JetBrains Mono',
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: gcs.text,
-                            )),
-                        Text('${device['port']} — ${device['model']}',
+                child: s.isScanning
+                    ? Row(children: [
+                        SizedBox(
+                            width: 10,
+                            height: 10,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 1.5, color: gcs.accent)),
+                        const SizedBox(width: 6),
+                        Text('SCANNING',
                             style: TextStyle(
                               fontFamily: 'JetBrains Mono',
                               fontSize: 9,
-                              color: gcs.secText,
+                              color: gcs.accent,
                             )),
-                      ])),
-                  Icon(LucideIcons.arrowRight, size: 14, color: gcs.accent),
-                ]),
+                      ])
+                    : Text('SCAN',
+                        style: TextStyle(
+                          fontFamily: 'JetBrains Mono',
+                          fontSize: 10,
+                          color: gcs.accent,
+                        )),
               ),
-            )),
-      ]),
+            ),
+          ]),
+          const SizedBox(height: 12),
+          ...s.autoScanList.map<Widget>((device) => GestureDetector(
+                onTap: () => onConnect(device['port']!),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 6),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: gcs.bg,
+                    borderRadius: BorderRadius.circular(4),
+                    border:
+                        Border.all(color: gcs.accent.withValues(alpha: 0.15)),
+                  ),
+                  child: Row(children: [
+                    Icon(LucideIcons.cpu, size: 14, color: gcs.accent),
+                    const SizedBox(width: 8),
+                    Expanded(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                          Text(device['name']!,
+                              style: TextStyle(
+                                fontFamily: 'JetBrains Mono',
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: gcs.text,
+                              )),
+                          Text('${device['port']} — ${device['model']}',
+                              style: TextStyle(
+                                fontFamily: 'JetBrains Mono',
+                                fontSize: 9,
+                                color: gcs.secText,
+                              )),
+                        ])),
+                    Icon(LucideIcons.arrowRight, size: 14, color: gcs.accent),
+                  ]),
+                ),
+              )),
+          const SizedBox(height: 16),
+        ]),
+      ),
     );
   }
 }
@@ -602,7 +630,8 @@ class _Label extends StatelessWidget {
 
 class _Dropdown<T> extends StatelessWidget {
   const _Dropdown(
-      {required this.value,
+      {super.key,
+      required this.value,
       required this.items,
       required this.gcs,
       required this.onChanged});

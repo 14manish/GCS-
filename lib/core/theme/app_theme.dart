@@ -82,6 +82,49 @@ class AppTheme {
         onSurface: AppColors.textDay,
       ),
       textTheme: _buildTextTheme(AppColors.textDay, AppColors.textSecDay),
+      iconTheme: const IconThemeData(color: AppColors.textSecDay, size: 20),
+      dividerColor: AppColors.accentDim,
+      cardColor: AppColors.panelsDay,
+      cardTheme: CardThemeData(
+        color: AppColors.panelsDay,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(6),
+          side: const BorderSide(color: AppColors.accentDim),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: AppColors.backgroundDay,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(4),
+          borderSide: const BorderSide(color: AppColors.accentDim),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(4),
+          borderSide: const BorderSide(color: AppColors.accentDim),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(4),
+          borderSide: const BorderSide(color: AppColors.accent),
+        ),
+        hintStyle: const TextStyle(color: AppColors.textSecDay, fontSize: 11),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.accent,
+          foregroundColor: AppColors.background,
+          textStyle: GoogleFonts.jetBrainsMono(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+          elevation: 0,
+        ),
+      ),
       extensions: const [GcsThemeExtension.light()],
     );
   }

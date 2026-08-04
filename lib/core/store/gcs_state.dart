@@ -20,13 +20,23 @@ class GcsState {
     this.autoScanList = const [],
     this.isScanning = false,
 
+    // MAVLink identity (populated once real HEARTBEAT is received)
+    this.remoteSystemId,
+    this.remoteComponentId,
+    this.autopilotType,
+    this.vehicleType,
+    this.lastError,
+
+    // MAVLink message log (live inspector)
+    this.mavlinkLog = const [],
+
     // Fleet
     this.drones = const [],
     this.selectedDroneId = 'D1',
 
     // Mission
-    this.missionName = 'Survey Alpha',
-    this.missionType = 'Survey',
+    this.missionName = '',
+    this.missionType = 'Waypoint',
     this.altitudeFrame = 'Relative',
     this.defaultAltitude = 50.0,
     this.waypoints = const [],
@@ -50,6 +60,7 @@ class GcsState {
     // UI
     this.utcTime = '00:00:00',
     this.themeMode = 'dark',
+    this.mapProvider = 'google_hybrid',
   });
 
   // Connection
@@ -64,8 +75,15 @@ class GcsState {
   final int sessionExpiry;
   final int signalStrength;
   final int lastHeartbeat;
-  final List<Map<String, String>> autoScanList;
+  final List<Map<String, dynamic>> autoScanList;
   final bool isScanning;
+
+  // MAVLink identity — null until first real HEARTBEAT received
+  final int? remoteSystemId;
+  final int? remoteComponentId;
+  final int? autopilotType; // MAV_AUTOPILOT enum value
+  final int? vehicleType; // MAV_TYPE enum value
+  final String? lastError;
 
   // Fleet
   final List<DroneModel> drones;
@@ -94,9 +112,13 @@ class GcsState {
   // Alerts
   final List<AlertModel> alerts;
 
+  // MAVLink live message log (capped at 200 entries)
+  final List<String> mavlinkLog;
+
   // UI
   final String utcTime;
   final String themeMode;
+  final String mapProvider;
 
   GcsState copyWith({
     String? connectionStatus,
@@ -110,8 +132,13 @@ class GcsState {
     int? sessionExpiry,
     int? signalStrength,
     int? lastHeartbeat,
-    List<Map<String, String>>? autoScanList,
+    List<Map<String, dynamic>>? autoScanList,
     bool? isScanning,
+    int? remoteSystemId,
+    int? remoteComponentId,
+    int? autopilotType,
+    int? vehicleType,
+    String? lastError,
     List<DroneModel>? drones,
     String? selectedDroneId,
     String? missionName,
@@ -131,8 +158,10 @@ class GcsState {
     int? simHeading,
     bool? simWipe,
     List<AlertModel>? alerts,
+    List<String>? mavlinkLog,
     String? utcTime,
     String? themeMode,
+    String? mapProvider,
   }) {
     return GcsState(
       connectionStatus: connectionStatus ?? this.connectionStatus,
@@ -148,6 +177,11 @@ class GcsState {
       lastHeartbeat: lastHeartbeat ?? this.lastHeartbeat,
       autoScanList: autoScanList ?? this.autoScanList,
       isScanning: isScanning ?? this.isScanning,
+      remoteSystemId: remoteSystemId ?? this.remoteSystemId,
+      remoteComponentId: remoteComponentId ?? this.remoteComponentId,
+      autopilotType: autopilotType ?? this.autopilotType,
+      vehicleType: vehicleType ?? this.vehicleType,
+      lastError: lastError ?? this.lastError,
       drones: drones ?? this.drones,
       selectedDroneId: selectedDroneId ?? this.selectedDroneId,
       missionName: missionName ?? this.missionName,
@@ -167,8 +201,10 @@ class GcsState {
       simHeading: simHeading ?? this.simHeading,
       simWipe: simWipe ?? this.simWipe,
       alerts: alerts ?? this.alerts,
+      mavlinkLog: mavlinkLog ?? this.mavlinkLog,
       utcTime: utcTime ?? this.utcTime,
       themeMode: themeMode ?? this.themeMode,
+      mapProvider: mapProvider ?? this.mapProvider,
     );
   }
 }

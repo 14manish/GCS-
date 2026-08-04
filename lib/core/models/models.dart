@@ -26,12 +26,15 @@ class DroneModel {
     this.current = 18.5,
     this.latency = 42,
     this.packetLoss = 0.3,
+    this.windSpeed = 0.0,
+    this.windDir = 'N (0°)',
     this.history = const [],
     this.targetWpIdx = 0,
     this.motor1Rpm = 0,
     this.motor2Rpm = 0,
     this.motor3Rpm = 0,
     this.motor4Rpm = 0,
+    this.statusMessage = '',
   });
 
   final String id;
@@ -57,12 +60,15 @@ class DroneModel {
   final double current;
   final int latency;
   final double packetLoss;
+  final double windSpeed;
+  final String windDir;
   final List<Map<String, double>> history;
   final int targetWpIdx;
   final int motor1Rpm;
   final int motor2Rpm;
   final int motor3Rpm;
   final int motor4Rpm;
+  final String statusMessage;
 
   DroneModel copyWith({
     String? id,
@@ -88,12 +94,15 @@ class DroneModel {
     double? current,
     int? latency,
     double? packetLoss,
+    double? windSpeed,
+    String? windDir,
     List<Map<String, double>>? history,
     int? targetWpIdx,
     int? motor1Rpm,
     int? motor2Rpm,
     int? motor3Rpm,
     int? motor4Rpm,
+    String? statusMessage,
   }) {
     return DroneModel(
       id: id ?? this.id,
@@ -119,12 +128,15 @@ class DroneModel {
       current: current ?? this.current,
       latency: latency ?? this.latency,
       packetLoss: packetLoss ?? this.packetLoss,
+      windSpeed: windSpeed ?? this.windSpeed,
+      windDir: windDir ?? this.windDir,
       history: history ?? this.history,
       targetWpIdx: targetWpIdx ?? this.targetWpIdx,
       motor1Rpm: motor1Rpm ?? this.motor1Rpm,
       motor2Rpm: motor2Rpm ?? this.motor2Rpm,
       motor3Rpm: motor3Rpm ?? this.motor3Rpm,
       motor4Rpm: motor4Rpm ?? this.motor4Rpm,
+      statusMessage: statusMessage ?? this.statusMessage,
     );
   }
 }

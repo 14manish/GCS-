@@ -34,6 +34,10 @@ dependencies:
   web_socket_channel: ^3.0.1
   lucide_icons_flutter: ^3.1.14+2
 
+  # Pixhawk USB Serial + MAVLink
+  flutter_libserialport: ^0.4.0
+  dart_mavlink: 0.1.0
+
 flutter:
   uses-material-design: true
 

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router/app_router.dart';
-import 'core/store/gcs_notifier.dart';
 import 'core/theme/app_theme.dart';
 
 void main() {
+  _printBanner();
   runApp(
     const ProviderScope(
       child: GcsApp(),
@@ -12,20 +12,44 @@ void main() {
   );
 }
 
+void _printBanner() {
+  final now = DateTime.now().toUtc();
+  final ts = '${now.year}-${now.month.toString().padLeft(2,'0')}-${now.day.toString().padLeft(2,'0')} '
+             '${now.hour.toString().padLeft(2,'0')}:${now.minute.toString().padLeft(2,'0')}:${now.second.toString().padLeft(2,'0')} UTC';
+
+  // ignore: avoid_print
+  print('''
+==========================================================================
+  __      __ I N G S P A N N   G C S
+  W
+==========================================================================
+  WINGSPANN Ground Control Station  —  Flutter Edition
+  Build Platform : Windows x64
+  Dart Runtime   : Dart VM
+  Start Time     : $ts
+==========================================================================
+[BOOT] Initializing providers...
+[BOOT] Loading theme (dark)...
+[BOOT] Setting up router...
+[BOOT] Starting MAVLink subsystem...
+[BOOT] Ready.
+''');
+}
+
+
 class GcsApp extends ConsumerWidget {
   const GcsApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeMode = ref.watch(gcsProvider.select((s) => s.themeMode));
-
+    // Always dark — Mission Planner style, no day/night toggle.
     return MaterialApp.router(
-      title: 'WINGSPAN GCS',
+      title: 'WINGSPANN GCS',
       debugShowCheckedModeBanner: false,
       routerConfig: appRouter,
-      theme: AppTheme.lightTheme(),
+      theme: AppTheme.darkTheme(),
       darkTheme: AppTheme.darkTheme(),
-      themeMode: themeMode == 'dark' ? ThemeMode.dark : ThemeMode.light,
+      themeMode: ThemeMode.dark,
     );
   }
 }

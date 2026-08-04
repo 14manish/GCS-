@@ -7,11 +7,23 @@
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
-  // Attach to console when present (e.g., 'flutter run') or create a
-  // new console when running with a debugger.
-  if (!::AttachConsole(ATTACH_PARENT_PROCESS) && ::IsDebuggerPresent()) {
+  // ── Always open a console window, Mission Planner style ──────────────────
+  // Try to attach to an existing parent console (e.g. launched from CMD).
+  // If there is none, allocate a brand-new one so it always shows up.
+  if (!::AttachConsole(ATTACH_PARENT_PROCESS)) {
     CreateAndAttachConsole();
   }
+  // Set title & resize to a comfortable 120-col layout
+  ::SetConsoleTitle(L"WINGSPANN GCS \x2014 Console");
+  HANDLE hConsole = ::GetStdHandle(STD_OUTPUT_HANDLE);
+  CONSOLE_SCREEN_BUFFER_INFO csbi;
+  if (::GetConsoleScreenBufferInfo(hConsole, &csbi)) {
+    COORD bufSize = {120, 3000};          // 120 cols, 3000-line scroll back
+    ::SetConsoleScreenBufferSize(hConsole, bufSize);
+    SMALL_RECT winRect = {0, 0, 119, 35}; // visible 120x36 window
+    ::SetConsoleWindowInfo(hConsole, TRUE, &winRect);
+  }
+  // ─────────────────────────────────────────────────────────────────────────
 
   // Initialize COM, so that it is available for use in the library and/or
   // plugins.

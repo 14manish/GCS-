@@ -15,19 +15,19 @@ The frontend has been carefully engineered using modern, high-performance framew
 
 The codebase is heavily modularized to separate UI components from business logic and state management. This ensures scalability and makes it easy for backend engineers to integrate data streams. Below is a comprehensive guide to the project's file structure.
 
-### 📂 Root Level Configuration
+###  Root Level Configuration
 * `pubspec.yaml` & `pubspec.lock`: Defines external package dependencies (like `flutter_map`, `flutter_riverpod`).
 * `analysis_options.yaml`: Enforces strict code linting and formatting rules for maintainability.
 * `.metadata` & `.flutter-plugins-dependencies`: Internal Flutter tracking files necessary for building the project.
 * `web/` & `windows/`: Platform-specific runners and configuration files for compiling to Web and Desktop.
 
-### 📂 `lib/` (Main Application Code)
+### `lib/` (Main Application Code)
 This is where the core logic and UI of the application live.
 
-#### 📄 `lib/main.dart`
+#### `lib/main.dart`
 The entry point of the application. It initializes the app, injects the Riverpod `ProviderScope`, and sets up the global theme and routing engine.
 
-#### 📂 `lib/core/`
+#### `lib/core/`
 Contains the business logic, state, routing, and styling that is shared globally across the app.
 * **`models/models.dart`**: Defines the data transfer objects (DTOs) and data shapes (e.g., Telemetry data, Drone status) expected by the frontend. 
 * **`store/`**:
@@ -38,14 +38,14 @@ Contains the business logic, state, routing, and styling that is shared globally
   * `app_colors.dart`: The centralized color palette.
   * `app_theme.dart`: Global light/dark themes and typography settings.
 
-#### 📂 `lib/shell/`
+#### `lib/shell/`
 Contains the persistent layout components that act as the structural "shell" of the dashboard.
 * `app_shell.dart`: The main layout wrapper tying the sidebar and top/bottom bars together.
 * `sidebar.dart`: The main vertical navigation menu.
 * `status_bar.dart`: The persistent top bar showing critical connection and vehicle status.
 * `bottom_alert_strip.dart`: A persistent strip at the bottom of the screen for displaying critical system warnings.
 
-#### 📂 `lib/pages/`
+#### `lib/pages/`
 Contains the individual screens and feature views of the dashboard.
 * `connection_page.dart`: Interface for establishing a connection to the vehicle via Serial, UDP, or TCP.
 * `fly_view/fly_view.dart`: The primary flight interface, featuring a live map, HUD, and real-time telemetry overlays.

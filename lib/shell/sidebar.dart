@@ -25,12 +25,13 @@ class GcsSidebar extends ConsumerWidget {
       const _NavItem(
           icon: LucideIcons.terminal, path: '/vehicles', label: 'Vehicles'),
       const _NavItem(
+          icon: LucideIcons.fan, path: '/motors', label: 'Motors'),
+      const _NavItem(
           icon: LucideIcons.activity, path: '/telemetry', label: 'Telemetry'),
       const _NavItem(
           icon: LucideIcons.alertOctagon, path: '/alerts', label: 'Alerts'),
       const _NavItem(
           icon: LucideIcons.sliders, path: '/parameters', label: 'Parameters'),
-      const _NavItem(icon: LucideIcons.video, path: '/video', label: 'Video'),
       const _NavItem(
           icon: LucideIcons.cpu, path: '/diagnostics', label: 'Diagnostics'),
       const _NavItem(icon: LucideIcons.fileText, path: '/logs', label: 'Logs'),

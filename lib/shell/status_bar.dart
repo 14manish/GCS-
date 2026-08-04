@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/store/gcs_notifier.dart';
-import '../core/theme/app_colors.dart';
+import '../core/store/weather_provider.dart';
+import '../core/widgets/weather_dialog.dart';
 import '../core/theme/app_theme.dart';
 
 class GcsStatusBar extends ConsumerStatefulWidget {
@@ -38,7 +39,6 @@ class _GcsStatusBarState extends ConsumerState<GcsStatusBar>
     final s = ref.watch(gcsProvider);
     final gcs = context.gcs;
     final drone = s.drones.isNotEmpty ? s.drones.first : null;
-    final activeCount = s.drones.where((d) => d.flightMode != 'Standby').length;
 
     return Container(
       height: 40,
@@ -50,40 +50,16 @@ class _GcsStatusBarState extends ConsumerState<GcsStatusBar>
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          // ── Left: Logo + Status Pills ──
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _buildLogo(gcs),
-                  const SizedBox(width: 20),
-                  _buildConnectionPill(s.connectionStatus, gcs),
-                  const SizedBox(width: 8),
-                  _buildPill('GPS:', '3D FIX', AppColors.success, gcs),
-                  const SizedBox(width: 8),
-                  _buildEncryptionPill(s.encryption, gcs),
-                  const SizedBox(width: 8),
-                  _buildPill(
-                    '${s.drones.length} FLEET',
-                    '($activeCount ACT)',
-                    gcs.accent,
-                    gcs,
-                  ),
-                ],
-              ),
-            ),
-          ),
+          // ── Left: Logo only ──
+          _buildLogo(gcs),
 
-          // ── Right: CONFLICT + WEATHER + THEME TOGGLE + CLOCK ──
+          const Spacer(),
+
+          // ── Right: WEATHER + CLOCK ──
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildConflictButton(gcs),
-              const SizedBox(width: 8),
               _buildWeatherButton(drone, gcs),
-              const SizedBox(width: 8),
-              _buildThemeToggle(s.themeMode, ref, gcs),
               const SizedBox(width: 12),
               Container(
                 width: 1,
@@ -111,7 +87,7 @@ class _GcsStatusBarState extends ConsumerState<GcsStatusBar>
           text: TextSpan(
             children: [
               TextSpan(
-                text: 'WINGSPAN ',
+                text: 'WINGSPANN ',
                 style: TextStyle(
                   fontFamily: 'JetBrains Mono',
                   fontSize: 11,
@@ -241,41 +217,22 @@ class _GcsStatusBarState extends ConsumerState<GcsStatusBar>
   }
 
   Widget _buildWeatherButton(drone, GcsThemeExtension gcs) {
-    final loc = drone != null
-        ? '${drone.lat.toStringAsFixed(4)}°N, ${drone.lng.toStringAsFixed(4)}°E'
-        : '28.6139°N, 77.2090°E';
+    final weather = ref.watch(weatherProvider);
+    final lat = drone?.lat ?? 28.6139;
+    final lng = drone?.lng ?? 77.2090;
+
     return _pillButton(
-      onTap: () {},
+      onTap: () => showWeatherDialog(context, lat, lng),
       child: Row(children: [
-        Icon(LucideIcons.cloudSun, size: 10, color: gcs.warning),
+        Icon(weather.icon, size: 10, color: gcs.warning),
         const SizedBox(width: 4),
-        Text('28°C | $loc', style: _monoStyle(gcs.secText, 10)),
+        Text('${weather.temperature.toStringAsFixed(0)}°C | ${weather.locationName}',
+            style: _monoStyle(gcs.secText, 10)),
       ]),
       gcs: gcs,
     );
   }
 
-  Widget _buildThemeToggle(String mode, WidgetRef ref, GcsThemeExtension gcs) {
-    final isDark = mode == 'dark';
-    return _pillButton(
-      onTap: () => ref
-          .read(gcsProvider.notifier)
-          .setThemeMode(isDark ? 'light' : 'dark'),
-      child: Row(children: [
-        Icon(
-          isDark ? LucideIcons.sun : LucideIcons.moon,
-          size: 10,
-          color: isDark ? gcs.warning : gcs.accent,
-        ),
-        const SizedBox(width: 4),
-        Text(
-          isDark ? 'DAY' : 'NIGHT',
-          style: _monoStyle(gcs.secText, 10),
-        ),
-      ]),
-      gcs: gcs,
-    );
-  }
 
   Widget _buildClock(String time, GcsThemeExtension gcs) {
     return SizedBox(
@@ -338,7 +295,7 @@ class _GcsStatusBarState extends ConsumerState<GcsStatusBar>
   }
 }
 
-// Custom painter for the WINGSPAN logo triangle
+// Custom painter for the WINGSPANN logo triangle
 class _LogoPainter extends CustomPainter {
   const _LogoPainter({required this.color});
   final Color color;

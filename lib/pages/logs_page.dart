@@ -40,7 +40,7 @@ class LogsPage extends ConsumerWidget {
       'level': 'INFO',
       'msg': 'Session started — AES-256 active'
     },
-    {'time': '10:15:01', 'level': 'INFO', 'msg': 'WINGSPAN GCS started'},
+    {'time': '10:15:01', 'level': 'INFO', 'msg': 'WINGSPANN GCS started'},
   ];
 
   @override

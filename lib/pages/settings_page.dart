@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/store/gcs_notifier.dart';
+import '../core/models/map_providers.dart';
+import '../core/widgets/map_provider_selector.dart';
 import '../core/theme/app_theme.dart';
 
 class SettingsPage extends ConsumerWidget {
@@ -35,14 +37,10 @@ class SettingsPage extends ConsumerWidget {
                       _settingsGroup(
                           'APPEARANCE',
                           [
-                            _ToggleSetting(
-                              label: 'Theme Mode',
-                              value: s.themeMode == 'dark',
-                              trueLabel: 'NIGHT',
-                              falseLabel: 'DAY',
-                              onChanged: (v) => ref
-                                  .read(gcsProvider.notifier)
-                                  .setThemeMode(v ? 'dark' : 'light'),
+                            _ActionRow(
+                              label: 'Map Provider',
+                              value: MapProviders.get(s.mapProvider).name.split(' (').first,
+                              onTap: () => showMapProviderSelector(context, ref),
                               gcs: gcs,
                             ),
                           ],
@@ -75,11 +73,7 @@ class SettingsPage extends ConsumerWidget {
                               onChanged: (_) {},
                               gcs: gcs,
                             ),
-                            _InfoRow(
-                                label: 'Session Expiry',
-                                value:
-                                    '${(s.sessionExpiry ~/ 60)} min ${s.sessionExpiry % 60} sec',
-                                gcs: gcs),
+
                           ],
                           gcs),
                       const SizedBox(height: 16),
@@ -87,7 +81,7 @@ class SettingsPage extends ConsumerWidget {
                           'ABOUT',
                           [
                             _InfoRow(
-                                label: 'App', value: 'WINGSPAN GCS', gcs: gcs),
+                                label: 'App', value: 'WINGSPANN GCS', gcs: gcs),
                             _InfoRow(
                                 label: 'Version',
                                 value: '2.1.0-flutter',
@@ -116,7 +110,7 @@ class SettingsPage extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('WINGSPAN GCS',
+                  Text('WINGSPANN GCS',
                       style: TextStyle(
                         fontFamily: 'JetBrains Mono',
                         fontSize: 22,
@@ -334,6 +328,54 @@ class _InfoRow extends StatelessWidget {
                 color: gcs.text,
               )),
         ],
+      ),
+    );
+  }
+}
+
+class _ActionRow extends StatelessWidget {
+  const _ActionRow({
+    required this.label,
+    required this.value,
+    required this.onTap,
+    required this.gcs,
+  });
+
+  final String label, value;
+  final VoidCallback onTap;
+  final GcsThemeExtension gcs;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontFamily: 'JetBrains Mono',
+                  fontSize: 11,
+                  color: gcs.secText,
+                ),
+              ),
+            ),
+            Text(
+              value,
+              style: TextStyle(
+                fontFamily: 'JetBrains Mono',
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: gcs.accent,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(LucideIcons.chevronRight, size: 14, color: gcs.accent),
+          ],
+        ),
       ),
     );
   }
