@@ -27,6 +27,9 @@ class GcsState {
     this.vehicleType,
     this.lastError,
 
+    // UDP transport — null when not bound
+    this.udpBoundPort,
+
     // MAVLink message log (live inspector)
     this.mavlinkLog = const [],
 
@@ -44,6 +47,9 @@ class GcsState {
     this.validationSteps = const [],
     this.uploadProgress = 0,
     this.isValidating = false,
+    // Real mission upload tracking
+    this.missionUploadTotal = 0,
+    this.missionUploadCurrent = 0,
 
     // Simulation
     this.simStatus = 'idle',
@@ -85,6 +91,9 @@ class GcsState {
   final int? vehicleType; // MAV_TYPE enum value
   final String? lastError;
 
+  // UDP — null when not bound
+  final int? udpBoundPort;
+
   // Fleet
   final List<DroneModel> drones;
   final String selectedDroneId;
@@ -99,6 +108,9 @@ class GcsState {
   final List<ValidationStepModel> validationSteps;
   final int uploadProgress;
   final bool isValidating;
+  // Real MAVLink mission upload progress
+  final int missionUploadTotal;
+  final int missionUploadCurrent;
 
   // Simulation
   final String simStatus;
@@ -120,6 +132,14 @@ class GcsState {
   final String themeMode;
   final String mapProvider;
 
+  DroneModel? get selectedDrone {
+    try {
+      return drones.firstWhere((d) => d.id == selectedDroneId);
+    } catch (_) {
+      return drones.isNotEmpty ? drones.first : null;
+    }
+  }
+
   GcsState copyWith({
     String? connectionStatus,
     String? connectionType,
@@ -139,6 +159,7 @@ class GcsState {
     int? autopilotType,
     int? vehicleType,
     String? lastError,
+    Object? udpBoundPort = _sentinel,
     List<DroneModel>? drones,
     String? selectedDroneId,
     String? missionName,
@@ -150,6 +171,8 @@ class GcsState {
     List<ValidationStepModel>? validationSteps,
     int? uploadProgress,
     bool? isValidating,
+    int? missionUploadTotal,
+    int? missionUploadCurrent,
     String? simStatus,
     String? simFirmware,
     double? simSpeed,
@@ -182,6 +205,7 @@ class GcsState {
       autopilotType: autopilotType ?? this.autopilotType,
       vehicleType: vehicleType ?? this.vehicleType,
       lastError: lastError ?? this.lastError,
+      udpBoundPort: udpBoundPort == _sentinel ? this.udpBoundPort : udpBoundPort as int?,
       drones: drones ?? this.drones,
       selectedDroneId: selectedDroneId ?? this.selectedDroneId,
       missionName: missionName ?? this.missionName,
@@ -193,6 +217,8 @@ class GcsState {
       validationSteps: validationSteps ?? this.validationSteps,
       uploadProgress: uploadProgress ?? this.uploadProgress,
       isValidating: isValidating ?? this.isValidating,
+      missionUploadTotal: missionUploadTotal ?? this.missionUploadTotal,
+      missionUploadCurrent: missionUploadCurrent ?? this.missionUploadCurrent,
       simStatus: simStatus ?? this.simStatus,
       simFirmware: simFirmware ?? this.simFirmware,
       simSpeed: simSpeed ?? this.simSpeed,
@@ -208,3 +234,7 @@ class GcsState {
     );
   }
 }
+
+// Sentinel object used to distinguish 'not passed' from 'null' for nullable
+// copyWith fields (e.g. udpBoundPort can legitimately be set to null).
+const Object _sentinel = Object();

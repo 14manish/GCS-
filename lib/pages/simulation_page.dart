@@ -72,6 +72,7 @@ class _SimulationPageState extends ConsumerState<SimulationPage> {
                 TileLayer(
                   urlTemplate: MapProviders.get(s.mapProvider).urlTemplate,
                   subdomains: MapProviders.get(s.mapProvider).subdomains,
+                  userAgentPackageName: 'com.example.gcs_flutter',
                 ),
                 // Home Marker Layer with "Home Location - Drag Me" Pin
                 MarkerLayer(
@@ -185,8 +186,8 @@ class _SimulationPageState extends ConsumerState<SimulationPage> {
                 GestureDetector(
                   onTap: () => showMapProviderSelector(context, ref),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: AppColors.glassBg,
                       borderRadius: BorderRadius.circular(6),
@@ -216,8 +217,8 @@ class _SimulationPageState extends ConsumerState<SimulationPage> {
                 GestureDetector(
                   onTap: () => setState(() => _showConsole = !_showConsole),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: _showConsole
                           ? AppColors.tacticalCyan.withValues(alpha: 0.25)
@@ -361,8 +362,8 @@ class _SimulationPageState extends ConsumerState<SimulationPage> {
                             children: [1.0, 2.0, 5.0, 10.0].map((sp) {
                               final isSelected = s.simSpeed == sp;
                               return InkWell(
-                                onTap: () => notifier
-                                    .setSimConfig({'simSpeed': sp}),
+                                onTap: () =>
+                                    notifier.setSimConfig({'simSpeed': sp}),
                                 child: Container(
                                   margin: const EdgeInsets.only(right: 3),
                                   padding: const EdgeInsets.symmetric(
@@ -451,7 +452,7 @@ class _SimulationPageState extends ConsumerState<SimulationPage> {
                             ),
                           ),
                         ),
-                         // Options Box: Extra command line
+                        // Options Box: Extra command line
                         _SimOptionBox(
                           label: 'Extra command line',
                           child: SizedBox(
@@ -729,9 +730,7 @@ class _VehicleDockCard extends StatelessWidget {
               : const Color(0xFF1E293B).withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
-            color: isSelected
-                ? AppColors.tacticalCyan
-                : AppColors.glassBorder,
+            color: isSelected ? AppColors.tacticalCyan : AppColors.glassBorder,
             width: isSelected ? 1.8 : 1.0,
           ),
         ),
@@ -824,7 +823,8 @@ class _MpPlanePainter extends CustomPainter {
     canvas.drawPath(path, paint);
 
     final outline = Paint()
-      ..color = isSelected ? Colors.white.withValues(alpha: 0.9) : Colors.black26
+      ..color =
+          isSelected ? Colors.white.withValues(alpha: 0.9) : Colors.black26
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.2;
     canvas.drawPath(path, outline);
@@ -862,9 +862,11 @@ class _MpRoverPainter extends CustomPainter {
     body.lineTo(w * 0.95, h * 0.40);
     body.quadraticBezierTo(w * 0.99, h * 0.45, w * 0.98, h * 0.58);
     body.lineTo(w * 0.88, h * 0.58);
-    body.arcToPoint(Offset(w * 0.62, h * 0.58), radius: Radius.circular(w * 0.13), clockwise: false);
+    body.arcToPoint(Offset(w * 0.62, h * 0.58),
+        radius: Radius.circular(w * 0.13), clockwise: false);
     body.lineTo(w * 0.38, h * 0.58);
-    body.arcToPoint(Offset(w * 0.12, h * 0.58), radius: Radius.circular(w * 0.13), clockwise: false);
+    body.arcToPoint(Offset(w * 0.12, h * 0.58),
+        radius: Radius.circular(w * 0.13), clockwise: false);
     body.lineTo(w * 0.05, h * 0.58);
     body.quadraticBezierTo(w * 0.02, h * 0.48, w * 0.1, h * 0.45);
     body.close();
@@ -918,8 +920,10 @@ class _MpMultirotorPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3.5;
 
-    canvas.drawLine(Offset(w * 0.2, h * 0.2), Offset(w * 0.8, h * 0.8), strokePaint);
-    canvas.drawLine(Offset(w * 0.8, h * 0.2), Offset(w * 0.2, h * 0.8), strokePaint);
+    canvas.drawLine(
+        Offset(w * 0.2, h * 0.2), Offset(w * 0.8, h * 0.8), strokePaint);
+    canvas.drawLine(
+        Offset(w * 0.8, h * 0.2), Offset(w * 0.2, h * 0.8), strokePaint);
 
     final ringRadius = w * 0.16;
     _drawRotorRing(canvas, Offset(w * 0.2, h * 0.2), ringRadius, paint);
@@ -991,18 +995,24 @@ class _MpHelicopterPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.5;
 
-    canvas.drawLine(Offset(w * 0.05, h * 0.28), Offset(w * 0.85, h * 0.28), rotorPaint);
-    canvas.drawLine(Offset(w * 0.42, h * 0.28), Offset(w * 0.42, h * 0.36), rotorPaint);
-    canvas.drawLine(Offset(w * 0.92, h * 0.22), Offset(w * 0.92, h * 0.52), rotorPaint);
+    canvas.drawLine(
+        Offset(w * 0.05, h * 0.28), Offset(w * 0.85, h * 0.28), rotorPaint);
+    canvas.drawLine(
+        Offset(w * 0.42, h * 0.28), Offset(w * 0.42, h * 0.36), rotorPaint);
+    canvas.drawLine(
+        Offset(w * 0.92, h * 0.22), Offset(w * 0.92, h * 0.52), rotorPaint);
 
     final skidPaint = Paint()
       ..color = isSelected ? Colors.white : const Color(0xFF94A3B8)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.2;
 
-    canvas.drawLine(Offset(w * 0.20, h * 0.82), Offset(w * 0.62, h * 0.82), skidPaint);
-    canvas.drawLine(Offset(w * 0.30, h * 0.68), Offset(w * 0.28, h * 0.82), skidPaint);
-    canvas.drawLine(Offset(w * 0.52, h * 0.68), Offset(w * 0.50, h * 0.82), skidPaint);
+    canvas.drawLine(
+        Offset(w * 0.20, h * 0.82), Offset(w * 0.62, h * 0.82), skidPaint);
+    canvas.drawLine(
+        Offset(w * 0.30, h * 0.68), Offset(w * 0.28, h * 0.82), skidPaint);
+    canvas.drawLine(
+        Offset(w * 0.52, h * 0.68), Offset(w * 0.50, h * 0.82), skidPaint);
   }
 
   @override

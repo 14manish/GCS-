@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_libserialport/flutter_libserialport.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/store/gcs_notifier.dart';
 import '../core/theme/app_colors.dart';
@@ -16,15 +17,29 @@ class _ConnectionPageState extends ConsumerState<ConnectionPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabCtrl;
 
-  String _selectedPort = 'COM3';
+  String _selectedPort = '';
   int _baudRate = 57600;
   String _hostIp = '127.0.0.1';
   int _udpPort = 14550;
+
+  // Dynamic port list — refreshed on demand
+  List<String> _availablePorts = [];
 
   @override
   void initState() {
     super.initState();
     _tabCtrl = TabController(length: 3, vsync: this, initialIndex: 1);
+    _refreshPorts();
+  }
+
+  void _refreshPorts() {
+    final ports = SerialPort.availablePorts;
+    setState(() {
+      _availablePorts = ports;
+      if (_selectedPort.isEmpty || !ports.contains(_selectedPort)) {
+        _selectedPort = ports.isNotEmpty ? ports.first : '';
+      }
+    });
   }
 
   @override
@@ -71,6 +86,27 @@ class _ConnectionPageState extends ConsumerState<ConnectionPage>
                               fontWeight: FontWeight.bold,
                               color: gcs.accent,
                             )),
+                        const Spacer(),
+                        // Protocol badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: gcs.accent.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(3),
+                            border: Border.all(
+                                color: gcs.accent.withValues(alpha: 0.3)),
+                          ),
+                          child: Text(
+                            'MAVLink v2',
+                            style: TextStyle(
+                              fontFamily: 'JetBrains Mono',
+                              fontSize: 9,
+                              color: gcs.accent,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
                       ]),
                       const SizedBox(height: 12),
 
@@ -119,14 +155,17 @@ class _ConnectionPageState extends ConsumerState<ConnectionPage>
                         key: const ValueKey('serial'),
                         port: _selectedPort,
                         baud: _baudRate,
+                        availablePorts: _availablePorts,
                         gcs: gcs,
                         onPortChanged: (v) => setState(() => _selectedPort = v),
                         onBaudChanged: (v) => setState(() => _baudRate = v),
+                        onRefresh: _refreshPorts,
                       ),
                       _UdpPanel(
                         key: const ValueKey('udp'),
                         ip: _hostIp,
                         port: _udpPort,
+                        boundPort: s.udpBoundPort,
                         gcs: gcs,
                         onIpChanged: (v) => setState(() => _hostIp = v),
                         onPortChanged: (v) => setState(() => _udpPort = v),
@@ -208,56 +247,154 @@ class _ConnectionPageState extends ConsumerState<ConnectionPage>
 
           // ─── Right Info/Status Panel ───
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Status indicator
-                  _ConnectionStatusCard(s: s, gcs: gcs),
-                  const SizedBox(height: 12),
+            child: Column(
+              children: [
+                // Top status area
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Status indicator
+                      _ConnectionStatusCard(s: s, gcs: gcs),
+                      const SizedBox(height: 12),
 
-                  // Last error banner (shown when connection fails)
-                  if (s.lastError != null) ...[
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: gcs.danger.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                            color: gcs.danger.withValues(alpha: 0.35)),
-                      ),
-                      child: Row(children: [
-                        Icon(LucideIcons.alertTriangle,
-                            size: 14, color: gcs.danger),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(s.lastError!,
-                              style: TextStyle(
-                                fontFamily: 'JetBrains Mono',
-                                fontSize: 10,
-                                color: gcs.danger,
-                              )),
+                      // Last error banner
+                      if (s.lastError != null) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: gcs.danger.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                                color: gcs.danger.withValues(alpha: 0.35)),
+                          ),
+                          child: Row(children: [
+                            Icon(LucideIcons.alertTriangle,
+                                size: 14, color: gcs.danger),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(s.lastError!,
+                                  style: TextStyle(
+                                    fontFamily: 'JetBrains Mono',
+                                    fontSize: 10,
+                                    color: gcs.danger,
+                                  )),
+                            ),
+                          ]),
                         ),
-                      ]),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
+                        const SizedBox(height: 12),
+                      ],
 
-                  // Fleet summary
-                  Text('CONNECTED FLEET',
-                      style: TextStyle(
-                        fontFamily: 'JetBrains Mono',
-                        fontSize: 10,
-                        color: gcs.secText,
-                        letterSpacing: 1.5,
-                      )),
-                  const SizedBox(height: 8),
-                  ...s.drones.map((d) => _DroneStatusRow(drone: d, gcs: gcs)),
-                ],
-              ),
+                      // Fleet summary
+                      Text('CONNECTED FLEET',
+                          style: TextStyle(
+                            fontFamily: 'JetBrains Mono',
+                            fontSize: 10,
+                            color: gcs.secText,
+                            letterSpacing: 1.5,
+                          )),
+                      const SizedBox(height: 8),
+                      ...s.drones.map((d) => _DroneStatusRow(drone: d, gcs: gcs)),
+                    ],
+                  ),
+                ),
+
+                // ─── MAVLink Live Log ───
+                Expanded(
+                  child: Container(
+                    margin: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                    decoration: BoxDecoration(
+                      color: gcs.panels,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: gcs.accent.withValues(alpha: 0.12)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Log header
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(
+                                  color: gcs.accent.withValues(alpha: 0.12)),
+                            ),
+                          ),
+                          child: Row(children: [
+                            Icon(LucideIcons.terminalSquare,
+                                size: 13, color: gcs.accent),
+                            const SizedBox(width: 8),
+                            Text('MAVLINK LIVE LOG',
+                                style: TextStyle(
+                                  fontFamily: 'JetBrains Mono',
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: gcs.accent,
+                                )),
+                            const Spacer(),
+                            Text('${s.mavlinkLog.length} msgs',
+                                style: TextStyle(
+                                  fontFamily: 'JetBrains Mono',
+                                  fontSize: 9,
+                                  color: gcs.secText,
+                                )),
+                          ]),
+                        ),
+                        // Log entries
+                        Expanded(
+                          child: s.mavlinkLog.isEmpty
+                              ? Center(
+                                  child: Text(
+                                    'No MAVLink messages yet.\nConnect a vehicle to see live telemetry.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontFamily: 'JetBrains Mono',
+                                      fontSize: 10,
+                                      color: gcs.secText,
+                                    ),
+                                  ),
+                                )
+                              : ListView.builder(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 6),
+                                  itemCount: s.mavlinkLog.length,
+                                  itemBuilder: (context, i) {
+                                    final entry = s.mavlinkLog[i];
+                                    final isCmd = entry.contains('CMD');
+                                    final isErr = entry.contains('FAIL') ||
+                                        entry.contains('ERROR') ||
+                                        entry.contains('timeout');
+                                    final isOk = entry.contains('ACCEPTED') ||
+                                        entry.contains('COMPLETE') ||
+                                        entry.contains('HEARTBEAT');
+                                    Color entryColor = gcs.secText;
+                                    if (isErr) entryColor = gcs.danger;
+                                    if (isOk) entryColor = gcs.success;
+                                    if (isCmd) entryColor = gcs.warning;
+                                    return Padding(
+                                      padding:
+                                          const EdgeInsets.symmetric(vertical: 1),
+                                      child: Text(
+                                        entry,
+                                        style: TextStyle(
+                                          fontFamily: 'JetBrains Mono',
+                                          fontSize: 9,
+                                          color: entryColor,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -266,42 +403,83 @@ class _ConnectionPageState extends ConsumerState<ConnectionPage>
   }
 }
 
+// ─── Serial Panel ──────────────────────────────────────────────────────────────
 class _SerialPanel extends StatelessWidget {
-  const _SerialPanel(
-      {super.key,
-      required this.port,
-      required this.baud,
-      required this.gcs,
-      required this.onPortChanged,
-      required this.onBaudChanged});
+  const _SerialPanel({
+    super.key,
+    required this.port,
+    required this.baud,
+    required this.availablePorts,
+    required this.gcs,
+    required this.onPortChanged,
+    required this.onBaudChanged,
+    required this.onRefresh,
+  });
   final String port;
   final int baud;
+  final List<String> availablePorts;
   final GcsThemeExtension gcs;
   final ValueChanged<String> onPortChanged;
   final ValueChanged<int> onBaudChanged;
+  final VoidCallback onRefresh;
 
   @override
   Widget build(BuildContext context) {
+    final portList = availablePorts.isNotEmpty
+        ? availablePorts
+        : const ['COM3', 'COM4', 'COM5', 'COM8'];
+    final effectivePort =
+        portList.contains(port) ? port : portList.first;
+
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _Label('SERIAL PORT', gcs),
+          Row(children: [
+            Expanded(child: _Label('SERIAL PORT', gcs)),
+            GestureDetector(
+              onTap: onRefresh,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: gcs.accent.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(3),
+                  border:
+                      Border.all(color: gcs.accent.withValues(alpha: 0.2)),
+                ),
+                child: Row(children: [
+                  Icon(LucideIcons.refreshCw, size: 10, color: gcs.accent),
+                  const SizedBox(width: 4),
+                  Text('REFRESH',
+                      style: TextStyle(
+                        fontFamily: 'JetBrains Mono',
+                        fontSize: 8,
+                        color: gcs.accent,
+                      )),
+                ]),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 4),
           _Dropdown<String>(
             key: const ValueKey('dropdown_port'),
-            value: port,
-            items: const [
-              'COM3',
-              'COM4',
-              'COM5',
-              'COM8',
-              'COM12',
-              '/dev/ttyUSB0',
-              '/dev/ttyACM0'
-            ],
+            value: effectivePort,
+            items: portList,
             gcs: gcs,
             onChanged: (v) => onPortChanged(v!),
           ),
+          if (availablePorts.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'No serial ports detected. Connect device and tap REFRESH.',
+                style: TextStyle(
+                    fontFamily: 'JetBrains Mono',
+                    fontSize: 8,
+                    color: gcs.danger),
+              ),
+            ),
           const SizedBox(height: 12),
           _Label('BAUD RATE', gcs),
           _Dropdown<int>(
@@ -329,6 +507,39 @@ class _SerialPanel extends StatelessWidget {
             gcs: gcs,
             onChanged: (_) {},
           ),
+          const SizedBox(height: 12),
+          // MAVLink info box
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: gcs.accent.withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: gcs.accent.withValues(alpha: 0.12)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('MAVLINK v2 — ArduPilotMega dialect',
+                    style: TextStyle(
+                      fontFamily: 'JetBrains Mono',
+                      fontSize: 9,
+                      color: gcs.accent,
+                      fontWeight: FontWeight.bold,
+                    )),
+                const SizedBox(height: 4),
+                Text(
+                  '• GCS sysId=255 compId=190\n'
+                  '• Heartbeat sent every 1s\n'
+                  '• 15s watchdog timeout\n'
+                  '• Data streams requested at connect',
+                  style: TextStyle(
+                      fontFamily: 'JetBrains Mono',
+                      fontSize: 8,
+                      color: gcs.secText),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 16),
         ]),
       ),
@@ -336,16 +547,20 @@ class _SerialPanel extends StatelessWidget {
   }
 }
 
+// ─── UDP Panel ─────────────────────────────────────────────────────────────────
 class _UdpPanel extends StatelessWidget {
-  const _UdpPanel(
-      {super.key,
-      required this.ip,
-      required this.port,
-      required this.gcs,
-      required this.onIpChanged,
-      required this.onPortChanged});
+  const _UdpPanel({
+    super.key,
+    required this.ip,
+    required this.port,
+    required this.boundPort,
+    required this.gcs,
+    required this.onIpChanged,
+    required this.onPortChanged,
+  });
   final String ip;
   final int port;
+  final int? boundPort;
   final GcsThemeExtension gcs;
   final ValueChanged<String> onIpChanged;
   final ValueChanged<int> onPortChanged;
@@ -365,7 +580,7 @@ class _UdpPanel extends StatelessWidget {
             decoration: const InputDecoration(hintText: '127.0.0.1'),
           ),
           const SizedBox(height: 12),
-          _Label('UDP PORT', gcs),
+          _Label('LOCAL UDP PORT (GCS listens here)', gcs),
           TextField(
             onChanged: (v) => onPortChanged(int.tryParse(v) ?? port),
             controller: TextEditingController(text: '$port'),
@@ -375,6 +590,29 @@ class _UdpPanel extends StatelessWidget {
             decoration: const InputDecoration(hintText: '14550'),
           ),
           const SizedBox(height: 12),
+
+          // Bound port status
+          if (boundPort != null)
+            Container(
+              padding: const EdgeInsets.all(10),
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: gcs.success.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: gcs.success.withValues(alpha: 0.3)),
+              ),
+              child: Row(children: [
+                Icon(LucideIcons.wifi, size: 11, color: gcs.success),
+                const SizedBox(width: 8),
+                Text('Listening on UDP port $boundPort',
+                    style: TextStyle(
+                      fontFamily: 'JetBrains Mono',
+                      fontSize: 9,
+                      color: gcs.success,
+                    )),
+              ]),
+            ),
+
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
@@ -383,13 +621,29 @@ class _UdpPanel extends StatelessWidget {
               border:
                   Border.all(color: AppColors.accent.withValues(alpha: 0.15)),
             ),
-            child: Text(
-              'Default: 127.0.0.1:14550 for SITL / MAVProxy\n'
-              'For real hardware: use vehicle IP / router IP',
-              style: TextStyle(
-                  fontFamily: 'JetBrains Mono',
-                  fontSize: 9,
-                  color: gcs.secText),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('UDP MAVLink — How it works',
+                    style: TextStyle(
+                      fontFamily: 'JetBrains Mono',
+                      fontSize: 9,
+                      color: gcs.accent,
+                      fontWeight: FontWeight.bold,
+                    )),
+                const SizedBox(height: 4),
+                Text(
+                  'GCS binds local port (default 14550) and sends\n'
+                  'MAVLink heartbeats. SITL / drone must connect\n'
+                  'outbound to this GCS IP:port.\n\n'
+                  'SITL: --out udp:127.0.0.1:14550\n'
+                  'MAVProxy: --out udpout:127.0.0.1:14550',
+                  style: TextStyle(
+                      fontFamily: 'JetBrains Mono',
+                      fontSize: 9,
+                      color: gcs.secText),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 16),
@@ -399,6 +653,7 @@ class _UdpPanel extends StatelessWidget {
   }
 }
 
+// ─── Auto-Scan Panel ───────────────────────────────────────────────────────────
 class _AutoPanel extends StatelessWidget {
   const _AutoPanel(
       {super.key,
@@ -460,6 +715,14 @@ class _AutoPanel extends StatelessWidget {
               ),
             ),
           ]),
+          const SizedBox(height: 8),
+          Text(
+            'Probes all serial ports for MAVLink heartbeats at 115200 baud.',
+            style: TextStyle(
+                fontFamily: 'JetBrains Mono',
+                fontSize: 8,
+                color: gcs.secText),
+          ),
           const SizedBox(height: 12),
           ...s.autoScanList.map<Widget>((device) => GestureDetector(
                 onTap: () => onConnect(device['port']!),
@@ -479,14 +742,16 @@ class _AutoPanel extends StatelessWidget {
                         child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                          Text(device['name']!,
+                          Text(
+                              'Port: ${device['port']}',
                               style: TextStyle(
                                 fontFamily: 'JetBrains Mono',
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
                                 color: gcs.text,
                               )),
-                          Text('${device['port']} — ${device['model']}',
+                          Text(
+                              'Autopilot: ${device['autopilot']}  Type: ${device['vehicleType']}',
                               style: TextStyle(
                                 fontFamily: 'JetBrains Mono',
                                 fontSize: 9,
@@ -497,6 +762,17 @@ class _AutoPanel extends StatelessWidget {
                   ]),
                 ),
               )),
+          if ((s.autoScanList as List).isEmpty && !s.isScanning)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'No MAVLink devices found. Tap SCAN to search.',
+                style: TextStyle(
+                    fontFamily: 'JetBrains Mono',
+                    fontSize: 9,
+                    color: gcs.secText),
+              ),
+            ),
           const SizedBox(height: 16),
         ]),
       ),
@@ -504,6 +780,7 @@ class _AutoPanel extends StatelessWidget {
   }
 }
 
+// ─── Connection Status Card ────────────────────────────────────────────────────
 class _ConnectionStatusCard extends StatelessWidget {
   const _ConnectionStatusCard({required this.s, required this.gcs});
   final dynamic s;
@@ -536,25 +813,43 @@ class _ConnectionStatusCard extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 16),
-        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(s.connectionStatus.toUpperCase(),
-              style: TextStyle(
-                fontFamily: 'JetBrains Mono',
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: color,
-              )),
-          Text('Type: ${s.connectionType}  |  Signal: ${s.signalStrength}%',
-              style: TextStyle(
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(s.connectionStatus.toUpperCase(),
+                style: TextStyle(
                   fontFamily: 'JetBrains Mono',
-                  fontSize: 10,
-                  color: gcs.secText)),
-        ]),
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                )),
+            Text(
+                'Type: ${s.connectionType}  |  MAVLink v2',
+                style: TextStyle(
+                    fontFamily: 'JetBrains Mono',
+                    fontSize: 10,
+                    color: gcs.secText)),
+            if (isConnected && s.remoteSystemId != null)
+              Text(
+                  'SysId: ${s.remoteSystemId}  CompId: ${s.remoteComponentId}',
+                  style: TextStyle(
+                      fontFamily: 'JetBrains Mono',
+                      fontSize: 9,
+                      color: gcs.accent)),
+            if (isConnected && s.udpBoundPort != null)
+              Text(
+                  'UDP port: ${s.udpBoundPort}',
+                  style: TextStyle(
+                      fontFamily: 'JetBrains Mono',
+                      fontSize: 9,
+                      color: gcs.secText)),
+          ]),
+        ),
       ]),
     );
   }
 }
 
+// ─── Drone Status Row ──────────────────────────────────────────────────────────
 class _DroneStatusRow extends StatelessWidget {
   const _DroneStatusRow({required this.drone, required this.gcs});
   final dynamic drone;
@@ -608,6 +903,7 @@ class _DroneStatusRow extends StatelessWidget {
   }
 }
 
+// ─── Shared helpers ────────────────────────────────────────────────────────────
 class _Label extends StatelessWidget {
   const _Label(this.text, this.gcs);
   final String text;

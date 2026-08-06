@@ -20,19 +20,9 @@ class CompassHeadingWidget extends StatelessWidget {
     final cardinalStr = _getCardinalDirection(heading);
     final degreeStr = '${heading.round()}°';
 
-    return Container(
+    return SizedBox(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.5),
-            blurRadius: 10,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -50,8 +40,14 @@ class CompassHeadingWidget extends StatelessWidget {
                   fontFamily: 'JetBrains Mono',
                   fontSize: 16,
                   fontWeight: FontWeight.w900,
-                  color: Color(0xFFFFB300), // Amber yellow readout
+                  color: Color(0xFF00F2FE), // Neon Cyan readout matching Image 1
                   height: 1.0,
+                  shadows: [
+                    Shadow(
+                      color: Color(0x8000F2FE),
+                      blurRadius: 8,
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 2),
@@ -95,16 +91,16 @@ class _CompassPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2;
 
-    // 1. Dark Slate Inner Background
+    // 1. Translucent Face Background letting 3D cyan backlight shine through
     final bgPaint = Paint()
-      ..color = const Color(0xD90F172A)
+      ..color = const Color(0x66070E17)
       ..style = PaintingStyle.fill;
     canvas.drawCircle(center, radius - 2, bgPaint);
 
     final borderPaint = Paint()
-      ..color = const Color(0xFF334155)
+      ..color = const Color(0xFF00E5FF).withValues(alpha: 0.25)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.0;
+      ..strokeWidth = 1.5;
     canvas.drawCircle(center, radius - 2, borderPaint);
 
     // 2. Rotate dial based on current heading (-heading in radians)

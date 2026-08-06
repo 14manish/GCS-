@@ -1,9 +1,19 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 
+class GcsHttpOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    return super.createHttpClient(context)
+      ..badCertificateCallback = (X509Certificate cert, String host, int port) => true;
+  }
+}
+
 void main() {
+  HttpOverrides.global = GcsHttpOverrides();
   _printBanner();
   runApp(
     const ProviderScope(
@@ -14,8 +24,9 @@ void main() {
 
 void _printBanner() {
   final now = DateTime.now().toUtc();
-  final ts = '${now.year}-${now.month.toString().padLeft(2,'0')}-${now.day.toString().padLeft(2,'0')} '
-             '${now.hour.toString().padLeft(2,'0')}:${now.minute.toString().padLeft(2,'0')}:${now.second.toString().padLeft(2,'0')} UTC';
+  final ts =
+      '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} '
+      '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')} UTC';
 
   // ignore: avoid_print
   print('''
@@ -33,9 +44,9 @@ void _printBanner() {
 [BOOT] Setting up router...
 [BOOT] Starting MAVLink subsystem...
 [BOOT] Ready.
+==========================================================================
 ''');
 }
-
 
 class GcsApp extends ConsumerWidget {
   const GcsApp({super.key});

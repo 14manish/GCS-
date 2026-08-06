@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -11,6 +12,17 @@ import '../core/widgets/map_provider_selector.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_theme.dart';
 
+const List<String> kCommandTypes = [
+  'Waypoint',
+  'Takeoff',
+  'Loiter',
+  'Land',
+  'RTL',
+  'Spline Waypoint',
+];
+
+const double kAssumedCruiseSpeedMps = 10.0;
+
 class MissionPage extends ConsumerStatefulWidget {
   const MissionPage({super.key});
 
@@ -22,15 +34,161 @@ class _MissionPageState extends ConsumerState<MissionPage> {
   String _activeTool = 'Waypoint';
   final _mapController = MapController();
   final List<LatLng> _geofencePoints = [];
+  int? _selectedIndex;
 
-  // Table header style
-  final _thStyle = const TextStyle(
-      fontFamily: 'JetBrains Mono',
-      fontSize: 9,
-      fontWeight: FontWeight.bold,
-      color: Colors.black87);
-  final _tdStyle = const TextStyle(
-      fontFamily: 'JetBrains Mono', fontSize: 10, color: Colors.black54);
+  // ─── GEO HELPERS ───
+
+  double _haversineMeters(LatLng a, LatLng b) {
+    const r = 6371000.0;
+    final dLat = _deg2rad(b.latitude - a.latitude);
+    final dLon = _deg2rad(b.longitude - a.longitude);
+    final lat1 = _deg2rad(a.latitude);
+    final lat2 = _deg2rad(b.latitude);
+    final h = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(lat1) * math.cos(lat2) * math.sin(dLon / 2) * math.sin(dLon / 2);
+    return 2 * r * math.asin(math.min(1, math.sqrt(h)));
+  }
+
+  double _bearingDegrees(LatLng a, LatLng b) {
+    final lat1 = _deg2rad(a.latitude);
+    final lat2 = _deg2rad(b.latitude);
+    final dLon = _deg2rad(b.longitude - a.longitude);
+    final y = math.sin(dLon) * math.cos(lat2);
+    final x = math.cos(lat1) * math.sin(lat2) -
+        math.sin(lat1) * math.cos(lat2) * math.cos(dLon);
+    final brng = _rad2deg(math.atan2(y, x));
+    return (brng + 360) % 360;
+  }
+
+  double _deg2rad(double d) => d * math.pi / 180.0;
+  double _rad2deg(double r) => r * 180.0 / math.pi;
+
+  ({double distM, double bearingDeg, double gradePct}) _legStats(
+      List<WaypointModel> wps, int i) {
+    if (i == 0) return (distM: 0, bearingDeg: 0, gradePct: 0);
+    final a = LatLng(wps[i - 1].lat, wps[i - 1].lng);
+    final b = LatLng(wps[i].lat, wps[i].lng);
+    final dist = _haversineMeters(a, b);
+    final bearing = _bearingDegrees(a, b);
+    final altDiff = wps[i].alt - wps[i - 1].alt;
+    final grade = dist > 0 ? (altDiff / dist) * 100 : 0.0;
+    return (distM: dist, bearingDeg: bearing, gradePct: grade);
+  }
+
+  double _totalDistanceKm(List<WaypointModel> wps) {
+    double total = 0;
+    for (var i = 1; i < wps.length; i++) {
+      total += _haversineMeters(
+          LatLng(wps[i - 1].lat, wps[i - 1].lng), LatLng(wps[i].lat, wps[i].lng));
+    }
+    return total / 1000.0;
+  }
+
+  // ─── STATE MUTATION HELPERS ───
+
+  void _replaceWaypoint(WidgetRef ref, int index,
+      {double? lat, double? lng, double? alt, String? action}) {
+    final s = ref.read(gcsProvider);
+    final notifier = ref.read(gcsProvider.notifier);
+    final wp = s.waypoints[index];
+    final updated = WaypointModel(
+      id: wp.id,
+      lat: lat ?? wp.lat,
+      lng: lng ?? wp.lng,
+      alt: alt ?? wp.alt,
+      action: action ?? wp.action,
+    );
+    final newList = [...s.waypoints];
+    newList[index] = updated;
+    notifier.setWaypoints(newList);
+  }
+
+  void _moveWaypoint(WidgetRef ref, int index, int delta) {
+    final s = ref.read(gcsProvider);
+    final target = index + delta;
+    if (target < 0 || target >= s.waypoints.length) return;
+    final newList = [...s.waypoints];
+    final item = newList.removeAt(index);
+    newList.insert(target, item);
+    ref.read(gcsProvider.notifier).setWaypoints(newList);
+    setState(() => _selectedIndex = target);
+  }
+
+  void _insertBelowSelected(WidgetRef ref, LatLng at) {
+    final s = ref.read(gcsProvider);
+    final notifier = ref.read(gcsProvider.notifier);
+    final insertAt = (_selectedIndex ?? s.waypoints.length - 1) + 1;
+    final idx = s.waypoints.length + 1;
+    final newWp = WaypointModel(
+        id: 'W${idx.toString().padLeft(2, '0')}',
+        lat: at.latitude,
+        lng: at.longitude,
+        alt: s.defaultAltitude,
+        action: 'Waypoint');
+    final newList = [...s.waypoints];
+    newList.insert(insertAt.clamp(0, newList.length), newWp);
+    notifier.setWaypoints(newList);
+    setState(() => _selectedIndex = insertAt);
+  }
+
+  Future<void> _openEditDialog(BuildContext context, WidgetRef ref, int index) async {
+    final s = ref.read(gcsProvider);
+    final gcs = context.gcs;
+    final wp = s.waypoints[index];
+    final latCtrl = TextEditingController(text: wp.lat.toStringAsFixed(6));
+    final lngCtrl = TextEditingController(text: wp.lng.toStringAsFixed(6));
+    final altCtrl = TextEditingController(text: wp.alt.toStringAsFixed(1));
+    String action = kCommandTypes.contains(wp.action) ? wp.action : kCommandTypes.first;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: gcs.panels,
+          title: Text('Edit Waypoint ${wp.id}', style: TextStyle(color: gcs.accent, fontFamily: 'JetBrains Mono')),
+          content: StatefulBuilder(
+            builder: (ctx, setDialogState) => Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(controller: latCtrl, style: TextStyle(color: gcs.text), decoration: InputDecoration(labelText: 'Latitude', labelStyle: TextStyle(color: gcs.secText))),
+                TextField(controller: lngCtrl, style: TextStyle(color: gcs.text), decoration: InputDecoration(labelText: 'Longitude', labelStyle: TextStyle(color: gcs.secText))),
+                TextField(controller: altCtrl, style: TextStyle(color: gcs.text), decoration: InputDecoration(labelText: 'Altitude (m)', labelStyle: TextStyle(color: gcs.secText))),
+                const SizedBox(height: 12),
+                DropdownButton<String>(
+                  value: action,
+                  isExpanded: true,
+                  dropdownColor: gcs.panels,
+                  style: TextStyle(color: gcs.text, fontFamily: 'JetBrains Mono'),
+                  items: kCommandTypes
+                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                      .toList(),
+                  onChanged: (v) => setDialogState(() => action = v ?? action),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel', style: TextStyle(color: gcs.secText))),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: gcs.accent),
+              onPressed: () {
+                _replaceWaypoint(
+                  ref,
+                  index,
+                  lat: double.tryParse(latCtrl.text),
+                  lng: double.tryParse(lngCtrl.text),
+                  alt: double.tryParse(altCtrl.text),
+                  action: action,
+                );
+                Navigator.pop(ctx);
+              },
+              child: const Text('Save', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,11 +196,18 @@ class _MissionPageState extends ConsumerState<MissionPage> {
     final gcs = context.gcs;
     final notifier = ref.read(gcsProvider.notifier);
 
-    final totalDist = s.waypoints.length > 1
-        ? (s.waypoints.length * 0.47).toStringAsFixed(2)
-        : '0.00';
-    final estTime =
-        s.waypoints.length > 1 ? (s.waypoints.length * 0.47 * 3.5).ceil() : 0;
+    final totalDist = _totalDistanceKm(s.waypoints);
+    final estTimeMin = kAssumedCruiseSpeedMps > 0
+        ? ((totalDist * 1000) / kAssumedCruiseSpeedMps / 60).ceil()
+        : 0;
+
+    final thStyle = TextStyle(
+        fontFamily: 'JetBrains Mono',
+        fontSize: 10,
+        fontWeight: FontWeight.bold,
+        color: gcs.accent);
+    final tdStyle = TextStyle(
+        fontFamily: 'JetBrains Mono', fontSize: 10, color: gcs.text);
 
     return Container(
       color: gcs.bg,
@@ -132,51 +297,63 @@ class _MissionPageState extends ConsumerState<MissionPage> {
                       Row(
                         children: [
                           Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 6),
-                              decoration: BoxDecoration(
-                                color: gcs.accent.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(LucideIcons.mapPin,
-                                      size: 10, color: gcs.accent),
-                                  const SizedBox(width: 4),
-                                  Text('WP TOOL',
-                                      style: TextStyle(
-                                          fontFamily: 'JetBrains Mono',
-                                          fontSize: 9,
-                                          color: gcs.accent,
-                                          fontWeight: FontWeight.bold)),
-                                ],
+                            child: GestureDetector(
+                              onTap: () => setState(() => _activeTool = 'Waypoint'),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: _activeTool == 'Waypoint'
+                                      ? gcs.accent.withValues(alpha: 0.15)
+                                      : gcs.bg,
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                      color: gcs.accent.withValues(alpha: 0.2)),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(LucideIcons.mapPin,
+                                        size: 10, color: gcs.accent),
+                                    const SizedBox(width: 4),
+                                    Text('WP TOOL',
+                                        style: TextStyle(
+                                            fontFamily: 'JetBrains Mono',
+                                            fontSize: 9,
+                                            color: gcs.accent,
+                                            fontWeight: FontWeight.bold)),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 6),
-                              decoration: BoxDecoration(
-                                color: gcs.bg,
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(
-                                    color: gcs.accent.withValues(alpha: 0.2)),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(LucideIcons.hexagon,
-                                      size: 10, color: gcs.secText),
-                                  const SizedBox(width: 4),
-                                  Text('SURVEY GRID',
-                                      style: TextStyle(
-                                          fontFamily: 'JetBrains Mono',
-                                          fontSize: 9,
-                                          color: gcs.secText,
-                                          fontWeight: FontWeight.bold)),
-                                ],
+                            child: GestureDetector(
+                              onTap: () => setState(() => _activeTool = 'Polygon'),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: _activeTool == 'Polygon'
+                                      ? gcs.accent.withValues(alpha: 0.15)
+                                      : gcs.bg,
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                      color: gcs.accent.withValues(alpha: 0.2)),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(LucideIcons.hexagon,
+                                        size: 10, color: gcs.secText),
+                                    const SizedBox(width: 4),
+                                    Text('SURVEY GRID',
+                                        style: TextStyle(
+                                            fontFamily: 'JetBrains Mono',
+                                            fontSize: 9,
+                                            color: gcs.secText,
+                                            fontWeight: FontWeight.bold)),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -185,9 +362,9 @@ class _MissionPageState extends ConsumerState<MissionPage> {
                       const SizedBox(height: 24),
                       _statRow(
                           'WAYPOINTS:', '${s.waypoints.length}', gcs.text, gcs),
-                      _statRow('EST DISTANCE:', '$totalDist km', gcs.text, gcs),
+                      _statRow('EST DISTANCE:', '${totalDist.toStringAsFixed(2)} km', gcs.text, gcs),
                       _statRow(
-                          'EST FLIGHT TIME:', '$estTime mins', gcs.text, gcs),
+                          'EST FLIGHT TIME:', '$estTimeMin mins', gcs.text, gcs),
                     ],
                   ),
                 ),
@@ -197,11 +374,12 @@ class _MissionPageState extends ConsumerState<MissionPage> {
                   child: Column(
                     children: [
                       _actionButton('+ ADD WAYPOINT', gcs.accent, null, () {
+                        final center = _mapController.camera.center;
                         final idx = s.waypoints.length + 1;
                         notifier.addWaypoint(WaypointModel(
                             id: 'W${idx.toString().padLeft(2, '0')}',
-                            lat: 28.6139,
-                            lng: 77.2090,
+                            lat: center.latitude,
+                            lng: center.longitude,
                             alt: s.defaultAltitude,
                             action: 'Waypoint'));
                       }, gcs, filled: true),
@@ -210,7 +388,10 @@ class _MissionPageState extends ConsumerState<MissionPage> {
                           'CLEAR MISSION', gcs.danger, LucideIcons.trash2, () {
                         notifier.setWaypoints([]);
                         notifier.setGeofence([]);
-                        setState(() => _geofencePoints.clear());
+                        setState(() {
+                          _geofencePoints.clear();
+                          _selectedIndex = null;
+                        });
                       }, gcs, filled: false, outlineOnly: true),
                     ],
                   ),
@@ -219,9 +400,8 @@ class _MissionPageState extends ConsumerState<MissionPage> {
             ),
           ),
 
-          // ─── CENTER AREA (MAP + TABLE) ───
+          // ─── CENTER AREA (MAP + FULL-WIDTH DARK TACTICAL TABLE) ───
           Expanded(
-            flex: 3,
             child: Column(
               children: [
                 // MAP (Top)
@@ -258,6 +438,7 @@ class _MissionPageState extends ConsumerState<MissionPage> {
                                 MapProviders.get(s.mapProvider).urlTemplate,
                             subdomains:
                                 MapProviders.get(s.mapProvider).subdomains,
+                            userAgentPackageName: 'com.example.gcs_flutter',
                           ),
                           if (s.waypoints.length > 1)
                             PolylineLayer<Object>(polylines: [
@@ -265,36 +446,43 @@ class _MissionPageState extends ConsumerState<MissionPage> {
                                   points: s.waypoints
                                       .map((wp) => LatLng(wp.lat, wp.lng))
                                       .toList(),
-                                  color: gcs.warning.withValues(alpha: 0.6),
-                                  strokeWidth: 2),
+                                  color: gcs.warning.withValues(alpha: 0.8),
+                                  strokeWidth: 2.5),
                             ]),
                           if (_geofencePoints.length > 2)
                             PolygonLayer<Object>(polygons: [
                               Polygon(
                                   points: _geofencePoints,
-                                  color: gcs.accent.withValues(alpha: 0.1),
+                                  color: gcs.accent.withValues(alpha: 0.15),
                                   borderColor: gcs.accent,
-                                  borderStrokeWidth: 1.5),
+                                  borderStrokeWidth: 2.0),
                             ]),
                           MarkerLayer(
                             markers: s.waypoints.asMap().entries.map((e) {
+                              final i = e.key;
+                              final selected = i == _selectedIndex;
                               return Marker(
                                 point: LatLng(e.value.lat, e.value.lng),
-                                width: 28,
-                                height: 28,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                      color: AppColors.accent,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                          color: Colors.white, width: 1.5)),
-                                  child: Center(
-                                      child: Text('${e.key + 1}',
-                                          style: const TextStyle(
-                                              fontFamily: 'JetBrains Mono',
-                                              fontSize: 9,
-                                              fontWeight: FontWeight.bold,
-                                              color: AppColors.background))),
+                                width: 30,
+                                height: 30,
+                                child: GestureDetector(
+                                  onTap: () => setState(() => _selectedIndex = i),
+                                  onDoubleTap: () => _openEditDialog(context, ref, i),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                        color: selected ? gcs.warning : AppColors.accent,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                            color: Colors.white,
+                                            width: selected ? 2.5 : 1.5)),
+                                    child: Center(
+                                        child: Text('${i + 1}',
+                                            style: const TextStyle(
+                                                fontFamily: 'JetBrains Mono',
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.bold,
+                                                color: AppColors.background))),
+                                  ),
                                 ),
                               );
                             }).toList(),
@@ -319,13 +507,13 @@ class _MissionPageState extends ConsumerState<MissionPage> {
                                   color: isActive
                                       ? AppColors.accent
                                       : AppColors.panels
-                                          .withValues(alpha: 0.85),
+                                          .withValues(alpha: 0.9),
                                   borderRadius: BorderRadius.circular(4),
                                   border: Border.all(
                                       color: isActive
                                           ? AppColors.accent
                                           : AppColors.accent
-                                              .withValues(alpha: 0.2)),
+                                              .withValues(alpha: 0.3)),
                                 ),
                                 child: Row(children: [
                                   Icon(
@@ -343,7 +531,8 @@ class _MissionPageState extends ConsumerState<MissionPage> {
                                           fontSize: 9,
                                           color: isActive
                                               ? gcs.bg
-                                              : AppColors.accent)),
+                                              : AppColors.accent,
+                                          fontWeight: FontWeight.bold)),
                                 ]),
                               ),
                             );
@@ -374,286 +563,237 @@ class _MissionPageState extends ConsumerState<MissionPage> {
                   ),
                 ),
 
-                // TABLE (Bottom)
+                // ─── WAYPOINTS TABLE (FULL-WIDTH DARK TACTICAL PANEL) ───
                 Container(
-                  height: 220,
+                  height: 240,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: gcs.panels,
                     border: Border(
                         top: BorderSide(
                             color: gcs.accent.withValues(alpha: 0.2))),
                   ),
                   child: Column(
                     children: [
-                      // Table Toolbar
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                              border: Border(
-                                  bottom: BorderSide(
-                                      color:
-                                          gcs.accent.withValues(alpha: 0.1)))),
+                      // Table Toolbar (Full width dark bar)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                            color: gcs.bg.withValues(alpha: 0.6),
+                            border: Border(
+                                bottom: BorderSide(
+                                    color:
+                                        gcs.accent.withValues(alpha: 0.15)))),
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
                           child: Row(
                             children: [
-                              _tbStat('WP RADIUS:', '3.00'),
-                              const SizedBox(width: 16),
-                              _tbStat('LOITER RADIUS:', '45'),
-                              const SizedBox(width: 16),
-                              _tbStat('DEFAULT ALT:', '100'),
-                              const SizedBox(width: 8),
-                              _DropSel(
-                                  value: 'Relative',
-                                  items: const ['Relative'],
-                                  gcs: gcs,
-                                  onChanged: (_) {},
-                                  compact: true),
-                              const SizedBox(width: 16),
-                              Row(children: [
-                                Icon(Icons.check_box,
-                                    color: gcs.accent, size: 14),
-                                const SizedBox(width: 4),
-                                Text('VERIFY HEIGHT',
-                                    style: TextStyle(
-                                        fontFamily: 'JetBrains Mono',
-                                        fontSize: 9,
-                                        color: gcs.text,
-                                        fontWeight: FontWeight.bold)),
-                              ]),
+                              _tbStat('DEFAULT ALT:', '${s.defaultAltitude.toStringAsFixed(0)} m', gcs),
+                              const SizedBox(width: 20),
+                              _tbStat('CRUISE SPD:', '${kAssumedCruiseSpeedMps.toStringAsFixed(0)} m/s', gcs),
                               const SizedBox(width: 24),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                    color: gcs.success,
-                                    borderRadius: BorderRadius.circular(4)),
-                                child: const Text('ADD BELOW',
-                                    style: TextStyle(
-                                        fontFamily: 'JetBrains Mono',
-                                        fontSize: 9,
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold)),
+                              GestureDetector(
+                                onTap: () {
+                                  final center = _mapController.camera.center;
+                                  _insertBelowSelected(ref, center);
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 5),
+                                  decoration: BoxDecoration(
+                                      color: gcs.success,
+                                      borderRadius: BorderRadius.circular(4),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: gcs.success.withValues(alpha: 0.3),
+                                          blurRadius: 4,
+                                        ),
+                                      ]),
+                                  child: const Row(
+                                    children: [
+                                      Icon(LucideIcons.plus, size: 12, color: Colors.white),
+                                      SizedBox(width: 4),
+                                      Text('ADD BELOW',
+                                          style: TextStyle(
+                                              fontFamily: 'JetBrains Mono',
+                                              fontSize: 9,
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                ),
                               ),
-                              const SizedBox(width: 16),
-                              _tbStat('ALT WARN:', '0'),
-                              const SizedBox(width: 16),
-                              Row(children: [
-                                Icon(Icons.check_box_outline_blank,
-                                    color: gcs.secText, size: 14),
-                                const SizedBox(width: 4),
-                                Text('NAVTIP',
-                                    style: TextStyle(
-                                        fontFamily: 'JetBrains Mono',
-                                        fontSize: 9,
-                                        color: gcs.secText,
-                                        fontWeight: FontWeight.bold)),
-                              ]),
+                              const SizedBox(width: 20),
+                              if (_selectedIndex != null)
+                                _tbStat('SELECTED:', 'WP ${_selectedIndex! + 1}', gcs, isHighlight: true),
                             ],
                           ),
                         ),
                       ),
-                      // Table Content (Header + Rows horizontally scrollable)
+                      // Table Content Layout (Full Width stretchable, bounded layout)
                       Expanded(
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: SizedBox(
-                            width: 950,
-                            child: Column(
-                              children: [
-                                // Table Header
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 8),
-                                  decoration: BoxDecoration(
-                                      border: Border(
-                                          bottom: BorderSide(
-                                              color: gcs.accent
-                                                  .withValues(alpha: 0.1)))),
-                                  child: Row(
-                                    children: [
-                                      SizedBox(
-                                          width: 25,
-                                          child: Text('#', style: _thStyle)),
-                                      SizedBox(
-                                          width: 95,
-                                          child:
-                                              Text('COMMAND', style: _thStyle)),
-                                      SizedBox(
-                                          width: 45,
-                                          child:
-                                              Text('DELAY', style: _thStyle)),
-                                      SizedBox(
-                                          width: 35,
-                                          child: Text('P1', style: _thStyle)),
-                                      SizedBox(
-                                          width: 35,
-                                          child: Text('P2', style: _thStyle)),
-                                      SizedBox(
-                                          width: 35,
-                                          child: Text('P3', style: _thStyle)),
-                                      SizedBox(
-                                          width: 35,
-                                          child: Text('P4', style: _thStyle)),
-                                      SizedBox(
-                                          width: 75,
-                                          child: Text('LAT', style: _thStyle)),
-                                      SizedBox(
-                                          width: 75,
-                                          child: Text('LONG', style: _thStyle)),
-                                      SizedBox(
-                                          width: 60,
-                                          child:
-                                              Text('ALT (M)', style: _thStyle)),
-                                      SizedBox(
-                                          width: 80,
-                                          child:
-                                              Text('FRAME', style: _thStyle)),
-                                      SizedBox(
-                                          width: 30,
-                                          child: Text('DEL', style: _thStyle)),
-                                      SizedBox(
-                                          width: 45,
-                                          child: Text('MOVE', style: _thStyle)),
-                                      SizedBox(
-                                          width: 55,
-                                          child:
-                                              Text('GRAD %', style: _thStyle)),
-                                      SizedBox(
-                                          width: 50,
-                                          child:
-                                              Text('ANGLE', style: _thStyle)),
-                                      SizedBox(
-                                          width: 60,
-                                          child: Text('DIST (M)',
-                                              style: _thStyle)),
-                                      SizedBox(
-                                          width: 40,
-                                          child: Text('AZ', style: _thStyle)),
-                                    ],
-                                  ),
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            return SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: SizedBox(
+                                width: math.max(constraints.maxWidth, 850.0),
+                                height: constraints.maxHeight,
+                                child: Column(
+                                  children: [
+                                    // Table Header
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 16, vertical: 8),
+                                      decoration: BoxDecoration(
+                                          color: gcs.bg.withValues(alpha: 0.3),
+                                          border: Border(
+                                              bottom: BorderSide(
+                                                  color: gcs.accent
+                                                      .withValues(alpha: 0.2)))),
+                                      child: Row(
+                                        children: [
+                                          SizedBox(width: 30, child: Text('#', style: thStyle)),
+                                          SizedBox(width: 120, child: Text('COMMAND', style: thStyle)),
+                                          SizedBox(width: 90, child: Text('LATITUDE', style: thStyle)),
+                                          SizedBox(width: 90, child: Text('LONGITUDE', style: thStyle)),
+                                          SizedBox(width: 70, child: Text('ALT (M)', style: thStyle)),
+                                          SizedBox(width: 40, child: Text('DEL', style: thStyle)),
+                                          SizedBox(width: 55, child: Text('MOVE', style: thStyle)),
+                                          SizedBox(width: 70, child: Text('GRAD %', style: thStyle)),
+                                          SizedBox(width: 70, child: Text('BEARING', style: thStyle)),
+                                          SizedBox(width: 90, child: Text('LEG DIST (m)', style: thStyle)),
+                                        ],
+                                      ),
+                                    ),
+                                    // Table Body
+                                    Expanded(
+                                      child: ListView.builder(
+                                        padding: EdgeInsets.zero,
+                                        itemCount: s.waypoints.length,
+                                        itemBuilder: (context, i) {
+                                          final wp = s.waypoints[i];
+                                          final leg = _legStats(s.waypoints, i);
+                                          final selected = i == _selectedIndex;
+                                          return GestureDetector(
+                                            onTap: () => setState(() => _selectedIndex = i),
+                                            onDoubleTap: () => _openEditDialog(context, ref, i),
+                                            child: AnimatedContainer(
+                                              duration: const Duration(milliseconds: 150),
+                                              padding: const EdgeInsets.symmetric(
+                                                  horizontal: 16, vertical: 8),
+                                              decoration: BoxDecoration(
+                                                  color: selected
+                                                      ? gcs.accent.withValues(alpha: 0.15)
+                                                      : (i % 2 == 0 ? Colors.transparent : gcs.bg.withValues(alpha: 0.2)),
+                                                  border: Border(
+                                                      left: BorderSide(
+                                                          color: selected ? gcs.warning : Colors.transparent,
+                                                          width: 3),
+                                                      bottom: BorderSide(
+                                                          color: gcs.accent
+                                                              .withValues(alpha: 0.08)))),
+                                              child: Row(
+                                                children: [
+                                                  SizedBox(
+                                                      width: 30,
+                                                      child: Text('${i + 1}',
+                                                          style: tdStyle.copyWith(
+                                                              color: selected ? gcs.warning : gcs.accent,
+                                                              fontWeight: FontWeight.bold))),
+                                                  SizedBox(
+                                                      width: 120,
+                                                      child: _DropSel(
+                                                          value: kCommandTypes.contains(wp.action)
+                                                              ? wp.action
+                                                              : kCommandTypes.first,
+                                                          items: kCommandTypes,
+                                                          gcs: gcs,
+                                                          onChanged: (v) =>
+                                                              _replaceWaypoint(ref, i, action: v),
+                                                          compact: true)),
+                                                  SizedBox(
+                                                      width: 90,
+                                                      child: Text(
+                                                          wp.lat.toStringAsFixed(4),
+                                                          style: tdStyle)),
+                                                  SizedBox(
+                                                      width: 90,
+                                                      child: Text(
+                                                          wp.lng.toStringAsFixed(4),
+                                                          style: tdStyle)),
+                                                  SizedBox(
+                                                      width: 70,
+                                                      child: Text(
+                                                          '${wp.alt.toStringAsFixed(0)} m',
+                                                          style: tdStyle.copyWith(fontWeight: FontWeight.bold))),
+                                                  SizedBox(
+                                                      width: 40,
+                                                      child: GestureDetector(
+                                                          onTap: () {
+                                                            notifier.deleteWaypoint(wp.id);
+                                                            if (_selectedIndex == i) {
+                                                              setState(() => _selectedIndex = null);
+                                                            }
+                                                          },
+                                                          child: Container(
+                                                            padding: const EdgeInsets.all(3),
+                                                            decoration: BoxDecoration(
+                                                              color: gcs.danger.withValues(alpha: 0.15),
+                                                              borderRadius: BorderRadius.circular(3),
+                                                            ),
+                                                            child: Icon(LucideIcons.x,
+                                                                size: 13,
+                                                                color: gcs.danger),
+                                                          ))),
+                                                  SizedBox(
+                                                      width: 55,
+                                                      child: Row(children: [
+                                                        GestureDetector(
+                                                          onTap: () => _moveWaypoint(ref, i, -1),
+                                                          child: Icon(Icons.arrow_upward,
+                                                              size: 14,
+                                                              color: i == 0
+                                                                  ? gcs.secText.withValues(alpha: 0.3)
+                                                                  : gcs.accent),
+                                                        ),
+                                                        const SizedBox(width: 4),
+                                                        GestureDetector(
+                                                          onTap: () => _moveWaypoint(ref, i, 1),
+                                                          child: Icon(Icons.arrow_downward,
+                                                              size: 14,
+                                                              color: i == s.waypoints.length - 1
+                                                                  ? gcs.secText.withValues(alpha: 0.3)
+                                                                  : gcs.accent),
+                                                        ),
+                                                      ])),
+                                                  SizedBox(
+                                                      width: 70,
+                                                      child: Text(
+                                                          '${leg.gradePct.toStringAsFixed(1)}%',
+                                                          style: tdStyle.copyWith(color: leg.gradePct > 15 ? gcs.warning : gcs.text))),
+                                                  SizedBox(
+                                                      width: 70,
+                                                      child: Text(
+                                                          '${leg.bearingDeg.toStringAsFixed(0)}°',
+                                                          style: tdStyle)),
+                                                  SizedBox(
+                                                      width: 90,
+                                                      child: Text(
+                                                          '${leg.distM.toStringAsFixed(1)} m',
+                                                          style: tdStyle.copyWith(color: gcs.accent))),
+                                                ],
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                // Table Body
-                                Expanded(
-                                  child: ListView.builder(
-                                    padding: EdgeInsets.zero,
-                                    itemCount: s.waypoints.length,
-                                    itemBuilder: (context, i) {
-                                      final wp = s.waypoints[i];
-                                      return Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 16, vertical: 8),
-                                        decoration: BoxDecoration(
-                                            border: Border(
-                                                bottom: BorderSide(
-                                                    color: gcs.accent
-                                                        .withValues(
-                                                            alpha: 0.05)))),
-                                        child: Row(
-                                          children: [
-                                            SizedBox(
-                                                width: 25,
-                                                child: Text('${i + 1}',
-                                                    style: _tdStyle.copyWith(
-                                                        color: gcs.accent,
-                                                        fontWeight:
-                                                            FontWeight.bold))),
-                                            SizedBox(
-                                                width: 95,
-                                                child: _DropSel(
-                                                    value: 'WAYPOINT',
-                                                    items: const ['WAYPOINT'],
-                                                    gcs: gcs,
-                                                    onChanged: (_) {},
-                                                    compact: true)),
-                                            SizedBox(
-                                                width: 45,
-                                                child:
-                                                    Text('0', style: _tdStyle)),
-                                            SizedBox(
-                                                width: 35,
-                                                child:
-                                                    Text('0', style: _tdStyle)),
-                                            SizedBox(
-                                                width: 35,
-                                                child:
-                                                    Text('0', style: _tdStyle)),
-                                            SizedBox(
-                                                width: 35,
-                                                child:
-                                                    Text('0', style: _tdStyle)),
-                                            SizedBox(
-                                                width: 35,
-                                                child:
-                                                    Text('0', style: _tdStyle)),
-                                            SizedBox(
-                                                width: 75,
-                                                child: Text(
-                                                    wp.lat.toStringAsFixed(4),
-                                                    style: _tdStyle)),
-                                            SizedBox(
-                                                width: 75,
-                                                child: Text(
-                                                    wp.lng.toStringAsFixed(4),
-                                                    style: _tdStyle)),
-                                            SizedBox(
-                                                width: 60,
-                                                child: Text(
-                                                    wp.alt.toStringAsFixed(0),
-                                                    style: _tdStyle)),
-                                            SizedBox(
-                                                width: 80,
-                                                child: _DropSel(
-                                                    value: 'Relative',
-                                                    items: const ['Relative'],
-                                                    gcs: gcs,
-                                                    onChanged: (_) {},
-                                                    compact: true)),
-                                            SizedBox(
-                                                width: 30,
-                                                child: GestureDetector(
-                                                    onTap: () => notifier
-                                                        .deleteWaypoint(wp.id),
-                                                    child: Icon(LucideIcons.x,
-                                                        size: 14,
-                                                        color: gcs.danger))),
-                                            const SizedBox(
-                                                width: 45,
-                                                child: Row(children: [
-                                                  Icon(Icons.arrow_upward,
-                                                      size: 12,
-                                                      color: Colors.black26),
-                                                  SizedBox(width: 4),
-                                                  Icon(Icons.arrow_downward,
-                                                      size: 12,
-                                                      color: Colors.blue)
-                                                ])),
-                                            SizedBox(
-                                                width: 55,
-                                                child: Text('0.0%',
-                                                    style: _tdStyle)),
-                                            SizedBox(
-                                                width: 50,
-                                                child: Text('0.0°',
-                                                    style: _tdStyle)),
-                                            SizedBox(
-                                                width: 60,
-                                                child: Text('200.5',
-                                                    style: _tdStyle)),
-                                            SizedBox(
-                                                width: 40,
-                                                child: Text('71°',
-                                                    style: _tdStyle)),
-                                          ],
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                              ),
+                            );
+                          },
                         ),
                       ),
                     ],
@@ -679,37 +819,104 @@ class _MissionPageState extends ConsumerState<MissionPage> {
                   child: ListView(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 12, vertical: 12),
-                    children: [
-                      _valStep('Check Airspace', 'Clear / Caution / Blocked',
-                          LucideIcons.checkCircle2, gcs.success),
-                      _valStep(
-                          'Check weather',
-                          'Suitable / Marginal / Unsuitable',
-                          LucideIcons.checkCircle2,
-                          gcs.success),
-                      _valStep(
-                          'NPNT Compliance',
-                          'PA Valid / PA Expired / NO PA',
-                          LucideIcons.helpCircle,
-                          gcs.secText),
-                      _valStep('Validate Mission', 'Checks pending',
-                          LucideIcons.helpCircle, gcs.secText),
-                      _valStep('Upload Mission', 'Ready to upload',
-                          LucideIcons.helpCircle, gcs.secText),
-                    ],
+                    children: s.validationSteps.isNotEmpty
+                        ? s.validationSteps.map((step) {
+                            IconData icon;
+                            Color color;
+                            if (step.status == 'pass') {
+                              icon = LucideIcons.checkCircle2;
+                              color = gcs.success;
+                            } else if (step.status == 'fail') {
+                              icon = LucideIcons.xCircle;
+                              color = gcs.danger;
+                            } else if (step.status == 'in_progress') {
+                              icon = LucideIcons.loader2;
+                              color = gcs.accent;
+                            } else {
+                              icon = LucideIcons.helpCircle;
+                              color = gcs.secText;
+                            }
+                            return _valStep(
+                                step.name,
+                                step.result.isEmpty ? step.status.toUpperCase() : step.result,
+                                icon,
+                                color,
+                                gcs);
+                          }).toList()
+                        : [
+                            _valStep(
+                                'Waypoint Count',
+                                s.waypoints.isEmpty
+                                    ? 'No waypoints added'
+                                    : '${s.waypoints.length} waypoints ready',
+                                s.waypoints.isEmpty
+                                    ? LucideIcons.alertCircle
+                                    : LucideIcons.checkCircle2,
+                                s.waypoints.isEmpty ? gcs.danger : gcs.success,
+                                gcs),
+                            _valStep(
+                                'Geofence Boundary',
+                                _geofencePoints.length > 2
+                                    ? '${_geofencePoints.length}-point polygon set'
+                                    : 'No Geofence Restriction',
+                                _geofencePoints.length > 2
+                                    ? LucideIcons.checkCircle2
+                                    : LucideIcons.helpCircle,
+                                _geofencePoints.length > 2
+                                    ? gcs.success
+                                    : gcs.secText,
+                                gcs),
+                            _valStep('Airspace Clearance', 'Pending Validation',
+                                LucideIcons.helpCircle, gcs.secText, gcs),
+                            _valStep('NPNT Digital Sky', 'Pending Validation',
+                                LucideIcons.helpCircle, gcs.secText, gcs),
+                            _valStep(
+                                'Mission Status',
+                                s.selectedDrone?.missionStatus ?? 'Not Uploaded',
+                                LucideIcons.info,
+                                gcs.accent,
+                                gcs),
+                          ],
                   ),
                 ),
                 Padding(
                   padding: const EdgeInsets.all(12),
                   child: Column(
                     children: [
-                      _actionButton('VALIDATE MISSION', gcs.accent, null,
-                          () => notifier.runValidation(), gcs,
-                          filled: false, outlineOnly: true),
+                      if (s.uploadProgress > 0 && s.uploadProgress < 100) ...[
+                        LinearProgressIndicator(
+                          value: s.uploadProgress / 100.0,
+                          backgroundColor: gcs.accent.withValues(alpha: 0.2),
+                          color: gcs.accent,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'UPLOADING WAYPOINTS: ${s.uploadProgress.toInt()}%',
+                          style: TextStyle(
+                              fontFamily: 'JetBrains Mono',
+                              fontSize: 9,
+                              color: gcs.accent,
+                              fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      _actionButton(
+                          s.isValidating ? 'VALIDATING...' : 'VALIDATE MISSION',
+                          gcs.accent,
+                          s.isValidating ? LucideIcons.loader2 : LucideIcons.shieldCheck,
+                          () => notifier.runValidation(),
+                          gcs,
+                          filled: false,
+                          outlineOnly: true),
                       const SizedBox(height: 8),
-                      _actionButton('UPLOAD MISSION', gcs.accent, null,
-                          () => notifier.uploadMission(), gcs,
-                          filled: true),
+                      _actionButton(
+                          s.uploadProgress == 100
+                              ? 'RE-UPLOAD MISSION'
+                              : 'UPLOAD MISSION',
+                          gcs.accent,
+                          LucideIcons.uploadCloud, () {
+                        notifier.uploadMission();
+                      }, gcs, filled: true),
                       const SizedBox(height: 8),
                       _actionButton(
                           'START MISSION', gcs.success, LucideIcons.play, () {
@@ -776,20 +983,20 @@ class _MissionPageState extends ConsumerState<MissionPage> {
     );
   }
 
-  Widget _tbStat(String label, String value) {
+  Widget _tbStat(String label, String value, GcsThemeExtension gcs, {bool isHighlight = false}) {
     return Row(children: [
       Text(label,
-          style: const TextStyle(
+          style: TextStyle(
               fontFamily: 'JetBrains Mono',
               fontSize: 9,
-              color: Colors.black54)),
-      const SizedBox(width: 4),
+              color: gcs.secText)),
+      const SizedBox(width: 5),
       Text(value,
-          style: const TextStyle(
+          style: TextStyle(
               fontFamily: 'JetBrains Mono',
               fontSize: 10,
               fontWeight: FontWeight.bold,
-              color: Colors.black)),
+              color: isHighlight ? gcs.warning : gcs.text)),
     ]);
   }
 
@@ -832,8 +1039,8 @@ class _MissionPageState extends ConsumerState<MissionPage> {
           color: outlineOnly
               ? Colors.transparent
               : (filled
-                  ? color.withValues(alpha: 0.8)
-                  : color.withValues(alpha: 0.1)),
+                  ? color.withValues(alpha: 0.85)
+                  : color.withValues(alpha: 0.15)),
           borderRadius: BorderRadius.circular(4),
           border: Border.all(
               color: outlineOnly
@@ -841,6 +1048,15 @@ class _MissionPageState extends ConsumerState<MissionPage> {
                   : (filled
                       ? Colors.transparent
                       : color.withValues(alpha: 0.3))),
+          boxShadow: filled
+              ? [
+                  BoxShadow(
+                    color: color.withValues(alpha: 0.25),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  )
+                ]
+              : null,
         ),
         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           if (icon != null) ...[
@@ -866,18 +1082,18 @@ class _MissionPageState extends ConsumerState<MissionPage> {
       child: Container(
         padding: const EdgeInsets.all(7),
         decoration: BoxDecoration(
-          color: AppColors.panels.withValues(alpha: 0.85),
+          color: AppColors.panels.withValues(alpha: 0.9),
           borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: AppColors.accent.withValues(alpha: 0.2)),
+          border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
         ),
         child: Icon(icon, size: 14, color: AppColors.accent),
       ),
     );
   }
 
-  Widget _valStep(String title, String subtitle, IconData icon, Color color) {
+  Widget _valStep(String title, String subtitle, IconData icon, Color color, GcsThemeExtension gcs) {
     return Padding(
-        padding: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.only(bottom: 14),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Icon(icon, size: 16, color: color),
           const SizedBox(width: 8),
@@ -886,11 +1102,11 @@ class _MissionPageState extends ConsumerState<MissionPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                 Text(title,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontFamily: 'JetBrains Mono',
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87)),
+                        color: gcs.text)),
                 const SizedBox(height: 2),
                 Text(subtitle,
                     style: TextStyle(
@@ -932,7 +1148,7 @@ class _DropSel extends StatelessWidget {
           value: safeValue,
           isExpanded: !compact,
           icon: Icon(LucideIcons.chevronDown,
-              size: compact ? 12 : 16, color: gcs.text),
+              size: compact ? 12 : 16, color: gcs.accent),
           dropdownColor: gcs.panels,
           style: TextStyle(
               fontFamily: 'JetBrains Mono',

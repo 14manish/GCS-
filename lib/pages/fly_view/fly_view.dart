@@ -14,7 +14,9 @@ import '../../core/widgets/analog_gauges.dart';
 import '../../core/widgets/hud/hud_glass_card.dart';
 import '../../core/widgets/hud/attitude_horizon_widget.dart';
 import '../../core/widgets/hud/compass_heading_widget.dart';
+import '../../core/widgets/hud/speedometer_gauge_widget.dart';
 import '../../core/widgets/hud/agl_elevation_profile_widget.dart';
+import '../../core/widgets/hud/gauge_3d_frame.dart';
 
 class FlyView extends ConsumerStatefulWidget {
   const FlyView({super.key});
@@ -42,6 +44,8 @@ class _FlyViewState extends ConsumerState<FlyView>
   double _lastCenteredLng = 0;
   // Track connection status to detect disconnect events
   String _lastConnectionStatus = 'Disconnected';
+  // 3D Map perspective mode toggle
+  bool _is3DMode = false;
 
   @override
   void initState() {
@@ -122,13 +126,38 @@ class _FlyViewState extends ConsumerState<FlyView>
         ? s.drones.firstWhere((d) => d.id == s.selectedDroneId,
             orElse: () => s.drones.first)
         : null;
+
+    final mode = drone?.flightMode.toUpperCase() ?? '';
+    final isArmed = drone?.health == 'Armed' || mode == 'ARMED';
+    final isFlying = s.simStatus == 'running' ||
+        mode == 'AUTO' ||
+        mode == 'GUIDED' ||
+        mode == 'TAKEOFF' ||
+        mode == 'RTL' ||
+        mode == 'LAND' ||
+        isArmed ||
+        (drone != null && drone.altitude > 0.5) ||
+        (drone != null && drone.speed > 0.3) ||
+        (drone != null && drone.missionStatus == 'In Progress') ||
+        (drone != null && drone.missionStatus == 'Mission Uploaded');
+
     return Container(
       color: gcs.bg,
       child: Stack(
         children: [
-          // ─── 1. FULL-BLEED BASE MAP ───
+          // ─── 1. FULL-BLEED BASE MAP (WITH 3D PERSPECTIVE TILT) ───
           Positioned.fill(
-            child: FlutterMap(
+            child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 400),
+                    curve: Curves.easeInOutCubic,
+                    transform: _is3DMode
+                        ? (Matrix4.identity()
+                          ..setEntry(3, 2, 0.0006)
+                          ..rotateX(-0.35)
+                          ..scale(1.22, 1.22, 1.0))
+                        : Matrix4.identity(),
+                    transformAlignment: Alignment.topCenter,
+                    child: FlutterMap(
               mapController: _mapController,
               options: MapOptions(
                 initialCenter: const LatLng(28.6139, 77.2090),
@@ -160,6 +189,9 @@ class _FlyViewState extends ConsumerState<FlyView>
                 TileLayer(
                   urlTemplate: MapProviders.get(s.mapProvider).urlTemplate,
                   subdomains: MapProviders.get(s.mapProvider).subdomains,
+                  userAgentPackageName: 'com.example.gcs_flutter',
+                  maxZoom: 20,
+                  maxNativeZoom: 19,
                 ),
 
                 // Flight trails
@@ -278,14 +310,15 @@ class _FlyViewState extends ConsumerState<FlyView>
                               color: isSelected
                                   ? AppColors.tacticalCyan
                                   : healthColor,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
             ),
           ),
 
@@ -361,7 +394,7 @@ class _FlyViewState extends ConsumerState<FlyView>
             ),
           ),
 
-          // ─── 3. TOP RIGHT BATTERY, SIGNAL, SPEED & GPS TELEMETRY CARDS ───
+          // ─── 3b. TOP RIGHT MAP CONTROLS ───
           Positioned(
             top: 14,
             right: 14,
@@ -369,208 +402,217 @@ class _FlyViewState extends ConsumerState<FlyView>
               crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Top Row: Select Map & Location/Waypoint Buttons
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Battery Card
-                    HudGlassCard(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text(
-                            'BAT',
-                            style: TextStyle(
-                              fontFamily: 'JetBrains Mono',
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.tacticalCyan,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${(drone?.voltage ?? 12.3).toStringAsFixed(1)}V',
-                            style: const TextStyle(
-                              fontFamily: 'JetBrains Mono',
-                              fontSize: 18,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white,
-                              height: 1.1,
-                            ),
-                          ),
-                          Text(
-                            '${(drone?.current ?? 11.4).toStringAsFixed(1)}A • ${(drone?.battery ?? 402).round()} mAh',
-                            style: const TextStyle(
-                              fontFamily: 'JetBrains Mono',
-                              fontSize: 9,
-                              color: AppColors.textSecond,
-                            ),
-                          ),
-                        ],
-                      ),
+                    _OverlayBtn(
+                      LucideIcons.layers,
+                      () => showMapProviderSelector(context, ref),
                     ),
                     const SizedBox(width: 8),
-                    // Signal Link RSSI Card
-                    HudGlassCard(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text(
-                            'LINK',
-                            style: TextStyle(
-                              fontFamily: 'JetBrains Mono',
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.tacticalCyan,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${s.signalStrength} %',
-                            style: const TextStyle(
-                              fontFamily: 'JetBrains Mono',
-                              fontSize: 18,
-                              fontWeight: FontWeight.w900,
-                              color: AppColors.tacticalGreen,
-                              height: 1.1,
-                            ),
-                          ),
-                          Text(
-                            'RSSI ${(drone?.signal ?? -64).round()} dBm',
-                            style: const TextStyle(
-                              fontFamily: 'JetBrains Mono',
-                              fontSize: 9,
-                              color: AppColors.textSecond,
-                            ),
-                          ),
-                        ],
-                      ),
+                    _OverlayBtn(
+                      LucideIcons.mapPin,
+                      () => setState(() => _drawMode =
+                          _drawMode == 'none' ? 'waypoint' : 'none'),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Speed Card
-                    HudGlassCard(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text(
-                            'SPD',
-                            style: TextStyle(
-                              fontFamily: 'JetBrains Mono',
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.tacticalCyan,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${_speed.round()}',
-                            style: const TextStyle(
-                              fontFamily: 'JetBrains Mono',
-                              fontSize: 22,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white,
-                              height: 1.0,
-                            ),
-                          ),
-                          const Text(
-                            'km/h',
-                            style: TextStyle(
-                              fontFamily: 'JetBrains Mono',
-                              fontSize: 9,
-                              color: AppColors.textSecond,
-                            ),
-                          ),
-                        ],
+                // Quick Map Controls (2D/3D toggle, reset location, +, -)
+                HudGlassCard(
+                  padding: const EdgeInsets.all(6),
+                  backgroundColor: _is3DMode
+                      ? AppColors.tacticalCyan.withValues(alpha: 0.9)
+                      : null,
+                  child: GestureDetector(
+                    onTap: () => setState(() => _is3DMode = !_is3DMode),
+                    child: Text(
+                      _is3DMode ? '3D' : '2D',
+                      style: TextStyle(
+                        fontFamily: 'JetBrains Mono',
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        color: _is3DMode ? Colors.black : AppColors.tacticalCyan,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    // GPS Card
-                    HudGlassCard(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text(
-                            'GPS',
-                            style: TextStyle(
-                              fontFamily: 'JetBrains Mono',
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.tacticalCyan,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            'S ${drone?.lat.toStringAsFixed(5) ?? '35.36601'}',
-                            style: const TextStyle(
-                              fontFamily: 'JetBrains Mono',
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          Text(
-                            'E ${drone?.lng.toStringAsFixed(5) ?? '149.16843'}',
-                            style: const TextStyle(
-                              fontFamily: 'JetBrains Mono',
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${drone?.satellites ?? 10} SAT • ${drone?.gpsQuality ?? '3D DGPS'}',
-                            style: const TextStyle(
-                              fontFamily: 'JetBrains Mono',
-                              fontSize: 8,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.tacticalGreen,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                HudGlassCard(
+                  padding: const EdgeInsets.all(6),
+                  child: GestureDetector(
+                    onTap: () {
+                      if (drone != null && drone.lat != 0 && drone.lng != 0) {
+                        _mapController.move(LatLng(drone.lat, drone.lng), 18);
+                      }
+                    },
+                    child: const Icon(LucideIcons.rotateCcw,
+                        size: 12, color: Colors.white),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                HudGlassCard(
+                  padding: const EdgeInsets.all(6),
+                  child: GestureDetector(
+                    onTap: () => _mapController.move(
+                        _mapController.camera.center,
+                        _mapController.camera.zoom + 1),
+                    child: const Icon(LucideIcons.plus,
+                        size: 12, color: Colors.white),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                HudGlassCard(
+                  padding: const EdgeInsets.all(6),
+                  child: GestureDetector(
+                    onTap: () => _mapController.move(
+                        _mapController.camera.center,
+                        _mapController.camera.zoom - 1),
+                    child: const Icon(LucideIcons.minus,
+                        size: 12, color: Colors.white),
+                  ),
                 ),
               ],
             ),
           ),
 
-          // ─── 5. BOTTOM LEFT TACTICAL INSTRUMENTATION CLUSTER ───
+          // ─── 3c. RIGHT SIDE TELEMETRY RECTANGULAR STRIP ───
           Positioned(
-            bottom: 14,
-            left: 14,
-            child: Row(
+            bottom: 148,
+            right: 14,
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Artificial Horizon Dial
-                AttitudeHorizonWidget(pitch: _pitch, roll: _roll, size: 125.0),
-                const SizedBox(width: 10),
-                // Compass Dial
-                CompassHeadingWidget(heading: _heading, size: 125.0),
+                _TelemetryBox(
+                  value: '${_altitude.toStringAsFixed(1)} m',
+                  color: const Color(0xFF9B51E0),
+                  icon: Icons.height,
+                ),
+                const SizedBox(height: 4),
+                _TelemetryBox(
+                  value: '${_speed.toStringAsFixed(1)} m/s',
+                  color: const Color(0xFFF2994A),
+                  icon: Icons.speed,
+                ),
+                const SizedBox(height: 4),
+                _TelemetryBox(
+                  value: '${_heading.toStringAsFixed(1)}°',
+                  color: const Color(0xFF27AE60),
+                  icon: Icons.explore,
+                ),
+                const SizedBox(height: 4),
+                _TelemetryBox(
+                  value: '${(drone?.climbRate ?? 0.0).toStringAsFixed(1)} m/s',
+                  color: const Color(0xFFF2C94C),
+                  icon: Icons.arrow_upward,
+                ),
+                const SizedBox(height: 4),
+                _TelemetryBox(
+                  value: '${(drone?.battery ?? 0.0).toStringAsFixed(0)}%',
+                  color: const Color(0xFFEB5757),
+                  icon: Icons.battery_charging_full,
+                ),
+                const SizedBox(height: 4),
+                _TelemetryBox(
+                  value: '${s.signalStrength}%',
+                  color: const Color(0xFF0D8CC6),
+                  icon: Icons.signal_cellular_alt,
+                ),
+                const SizedBox(height: 4),
+                _TelemetryBox(
+                  value: '${(drone?.windSpeed ?? 0.0).toStringAsFixed(1)} km/h',
+                  color: const Color(0xFF00BFA5),
+                  icon: Icons.air,
+                ),
+                const SizedBox(height: 4),
+                _TelemetryBox(
+                  value: drone?.windDir ?? '--',
+                  color: const Color(0xFF00BFA5),
+                  icon: Icons.navigation,
+                ),
               ],
             ),
           ),
 
-          // ─── 6. BOTTOM CENTER REAL-TIME AGL ELEVATION PROFILE ───
+          // ─── 5. BOTTOM LEFT TACTICAL 3D INSTRUMENTATION CLUSTER ───
           Positioned(
             bottom: 14,
-            left: 560,
+            left: 14,
+            child: SizedBox(
+              width: 415,
+              height: 180,
+              child: Stack(
+                alignment: Alignment.bottomLeft,
+                children: [
+                  // Ground Contact Shadow under 3D Cluster
+                  Positioned(
+                    bottom: -2,
+                    left: 20,
+                    right: 20,
+                    child: Container(
+                      height: 18,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(100),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.85),
+                            blurRadius: 22,
+                            spreadRadius: 8,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Left Dial: Artificial Horizon (Layered Behind Center)
+                  Positioned(
+                    left: 0,
+                    bottom: 0,
+                    child: Gauge3dFrame(
+                      size: 150.0,
+                      child: AttitudeHorizonWidget(
+                        pitch: _pitch,
+                        roll: _roll,
+                        size: 150.0,
+                      ),
+                    ),
+                  ),
+                  // Right Dial: Speedometer (Layered Behind Center)
+                  Positioned(
+                    left: 260,
+                    bottom: 0,
+                    child: Gauge3dFrame(
+                      size: 150.0,
+                      child: SpeedometerGaugeWidget(
+                        speed: _speed,
+                        size: 150.0,
+                        minSpeed: 60.0,
+                        maxSpeed: 200.0,
+                      ),
+                    ),
+                  ),
+                  // Center Dial: Compass / Heading (Larger & Layered ON TOP)
+                  Positioned(
+                    left: 115,
+                    bottom: 0,
+                    child: Gauge3dFrame(
+                      size: 175.0,
+                      child: CompassHeadingWidget(
+                        heading: _heading,
+                        size: 175.0,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // ─── 6. BOTTOM RIGHT REAL-TIME AGL ELEVATION PROFILE ───
+          Positioned(
+            bottom: 14,
+            right: 14,
             child: AglElevationProfileWidget(
               aglAltitude: _altitude,
               targetDistance: 78.0,
@@ -579,207 +621,37 @@ class _FlyViewState extends ConsumerState<FlyView>
             ),
           ),
 
-          // ─── 7. BOTTOM RIGHT NAVIGATION READOUTS & QUICK CONTROLS ───
+          // ─── 8. TOP LEFT DRAWER TOGGLE ───
           Positioned(
-            bottom: 14,
-            right: 14,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                // HOME Distance/Bearing Card
-                HudGlassCard(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'HOME',
-                        style: TextStyle(
-                          fontFamily: 'JetBrains Mono',
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.tacticalCyan,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Row(
-                        children: [
-                          Icon(LucideIcons.navigation,
-                              size: 11, color: AppColors.tacticalCyan),
-                          SizedBox(width: 4),
-                          Text(
-                            '413 m',
-                            style: TextStyle(
-                              fontFamily: 'JetBrains Mono',
-                              fontSize: 16,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white,
-                              height: 1.0,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const Text(
-                        '316°',
-                        style: TextStyle(
-                          fontFamily: 'JetBrains Mono',
-                          fontSize: 9,
-                          color: AppColors.textSecond,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                // ALT Altitude Card
-                HudGlassCard(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'ALT',
-                        style: TextStyle(
-                          fontFamily: 'JetBrains Mono',
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.tacticalCyan,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${_altitude.toStringAsFixed(1)} m',
-                        style: const TextStyle(
-                          fontFamily: 'JetBrains Mono',
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                          height: 1.0,
-                        ),
-                      ),
-                      Text(
-                        '• ${(drone?.climbRate ?? 0.0).toStringAsFixed(1)} m/s',
-                        style: const TextStyle(
-                          fontFamily: 'JetBrains Mono',
-                          fontSize: 9,
-                          color: AppColors.textSecond,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                // Quick Map Controls Column (2D, reset, +, -)
-                Column(
+            top: 14,
+            left: 14,
+            child: HudGlassCard(
+              padding: const EdgeInsets.all(8),
+              child: GestureDetector(
+                onTap: () => setState(() => _showSidePanel = !_showSidePanel),
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    HudGlassCard(
-                      padding: const EdgeInsets.all(6),
-                      child: const Text(
-                        '2D',
-                        style: TextStyle(
-                          fontFamily: 'JetBrains Mono',
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.tacticalCyan,
-                        ),
-                      ),
+                    Icon(
+                      _showSidePanel
+                          ? LucideIcons.panelLeftClose
+                          : LucideIcons.panelLeftOpen,
+                      size: 14,
+                      color: AppColors.tacticalCyan,
                     ),
-                    const SizedBox(height: 4),
-                    HudGlassCard(
-                      padding: const EdgeInsets.all(6),
-                      child: GestureDetector(
-                        onTap: () {
-                          if (drone != null &&
-                              drone.lat != 0 &&
-                              drone.lng != 0) {
-                            _mapController.move(
-                                LatLng(drone.lat, drone.lng), 18);
-                          }
-                        },
-                        child: const Icon(LucideIcons.rotateCcw,
-                            size: 12, color: Colors.white),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    HudGlassCard(
-                      padding: const EdgeInsets.all(6),
-                      child: GestureDetector(
-                        onTap: () => _mapController.move(
-                            _mapController.camera.center,
-                            _mapController.camera.zoom + 1),
-                        child: const Icon(LucideIcons.plus,
-                            size: 12, color: Colors.white),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    HudGlassCard(
-                      padding: const EdgeInsets.all(6),
-                      child: GestureDetector(
-                        onTap: () => _mapController.move(
-                            _mapController.camera.center,
-                            _mapController.camera.zoom - 1),
-                        child: const Icon(LucideIcons.minus,
-                            size: 12, color: Colors.white),
+                    const SizedBox(width: 6),
+                    Text(
+                      _showSidePanel ? 'HIDE PANEL' : 'TELEMETRY',
+                      style: const TextStyle(
+                        fontFamily: 'JetBrains Mono',
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-
-          // ─── 8. TOP LEFT TOOLS & DRAWER TOGGLE ───
-          Positioned(
-            top: 14,
-            left: 14,
-            child: Row(
-              children: [
-                HudGlassCard(
-                  padding: const EdgeInsets.all(8),
-                  child: GestureDetector(
-                    onTap: () =>
-                        setState(() => _showSidePanel = !_showSidePanel),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          _showSidePanel
-                              ? LucideIcons.panelLeftClose
-                              : LucideIcons.panelLeftOpen,
-                          size: 14,
-                          color: AppColors.tacticalCyan,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          _showSidePanel ? 'HIDE PANEL' : 'TELEMETRY',
-                          style: const TextStyle(
-                            fontFamily: 'JetBrains Mono',
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _OverlayBtn(
-                  LucideIcons.layers,
-                  () => showMapProviderSelector(context, ref),
-                ),
-                const SizedBox(width: 8),
-                _OverlayBtn(
-                  LucideIcons.mapPin,
-                  () => setState(() =>
-                      _drawMode = _drawMode == 'none' ? 'waypoint' : 'none'),
-                ),
-              ],
+              ),
             ),
           ),
 
@@ -840,24 +712,80 @@ class _FlyViewState extends ConsumerState<FlyView>
               ),
             ),
 
-          // Picture-in-Picture Camera Strip
-          Positioned(
-            bottom: 150,
-            left: 14,
-            child: HudGlassCard(
-              padding: EdgeInsets.zero,
-              width: 240,
-              height: 90,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: _CameraStrip(
-                  cameraCtrl: _cameraCtrl,
-                  drones: s.drones,
-                  gcs: gcs,
+          // Picture-in-Picture Camera Strip — Displays automatically when mission starts or drone is flying
+          if (isFlying)
+            Positioned(
+              bottom: 150,
+              left: 14,
+              child: HudGlassCard(
+                padding: EdgeInsets.zero,
+                width: 395,
+                height: 130,
+                child: Column(
+                  children: [
+                    // Camera header bar
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.5),
+                        border: Border(
+                          bottom: BorderSide(
+                            color: AppColors.accent.withValues(alpha: 0.2),
+                          ),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFFF3B30),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          const Text(
+                            'LIVE CAMERA FEED',
+                            style: TextStyle(
+                              fontFamily: 'JetBrains Mono',
+                              fontSize: 8,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.accent,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            '1080P HD',
+                            style: TextStyle(
+                              fontFamily: 'JetBrains Mono',
+                              fontSize: 7,
+                              color: Colors.white.withValues(alpha: 0.6),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Live camera view
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: const BorderRadius.only(
+                          bottomLeft: Radius.circular(8),
+                          bottomRight: Radius.circular(8),
+                        ),
+                        child: _CameraStrip(
+                          cameraCtrl: _cameraCtrl,
+                          drones: s.drones,
+                          gcs: gcs,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -2383,6 +2311,59 @@ class _ArmBtn extends StatelessWidget {
               fontWeight: FontWeight.bold,
               letterSpacing: 0.8,
             )),
+      ),
+    );
+  }
+}
+
+/// Rectangular tactical telemetry box matching user's requested layout.
+/// Displays symbol/icon on left and live value on right (no text names).
+class _TelemetryBox extends StatelessWidget {
+  const _TelemetryBox({
+    required this.value,
+    required this.color,
+    required this.icon,
+  });
+
+  final String value;
+  final Color color;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 100,
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xF209111E), // Solid dark high contrast background
+        borderRadius:
+            BorderRadius.circular(4), // Sharp tactical rectangular box
+        border: Border.all(
+          color: color.withValues(alpha: 0.65),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.5),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Icon(icon, size: 15, color: color),
+          Text(
+            value,
+            style: const TextStyle(
+              fontFamily: 'JetBrains Mono',
+              fontSize: 12.5,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+            ),
+          ),
+        ],
       ),
     );
   }

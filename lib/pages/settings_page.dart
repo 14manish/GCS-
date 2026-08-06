@@ -20,7 +20,7 @@ class SettingsPage extends ConsumerWidget {
         children: [
           // ─── Left Config Panel ───
           Container(
-            width: 280,
+            width: 320,
             decoration: BoxDecoration(
               color: gcs.panels,
               border: Border(
@@ -45,7 +45,7 @@ class SettingsPage extends ConsumerWidget {
                             ),
                           ],
                           gcs),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
                       _settingsGroup(
                           'TELEMETRY',
                           [
@@ -61,7 +61,7 @@ class SettingsPage extends ConsumerWidget {
                                 gcs: gcs),
                           ],
                           gcs),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
                       _settingsGroup(
                           'SECURITY',
                           [
@@ -73,10 +73,9 @@ class SettingsPage extends ConsumerWidget {
                               onChanged: (_) {},
                               gcs: gcs,
                             ),
-
                           ],
                           gcs),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
                       _settingsGroup(
                           'ABOUT',
                           [
@@ -106,24 +105,24 @@ class SettingsPage extends ConsumerWidget {
           // ─── Right Info Panel ───
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              padding: const EdgeInsets.all(28),
+              child: ListView(
                 children: [
                   Text('WINGSPANN GCS',
                       style: TextStyle(
                         fontFamily: 'JetBrains Mono',
-                        fontSize: 22,
+                        fontSize: 24,
                         fontWeight: FontWeight.bold,
                         color: gcs.accent,
                         letterSpacing: 2,
                       )),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Text('Ground Control Station — Multi-Platform Edition',
                       style: TextStyle(
                           fontFamily: 'JetBrains Mono',
-                          fontSize: 11,
-                          color: gcs.secText)),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white.withValues(alpha: 0.9))),
                   const SizedBox(height: 32),
                   Wrap(
                     spacing: 12,
@@ -143,16 +142,16 @@ class SettingsPage extends ConsumerWidget {
                       'Real MAVLink v2 UDP/Serial connectivity available. Connect via Connection page.',
                       LucideIcons.radio,
                       gcs),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   _buildInfoCard(
                       'Data Security',
                       'AES-256 encrypted telemetry stream. Session tokens auto-expire.',
                       LucideIcons.shield,
                       gcs),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   _buildInfoCard(
-                      'Multi-Vehicle',
-                      'Manage up to 32 simultaneous vehicles. Independent telemetry feeds.',
+                      'Multi-Vehicle Operations',
+                      'Manage up to 32 simultaneous vehicles with independent live telemetry feeds.',
                       LucideIcons.plane,
                       gcs),
                 ],
@@ -166,18 +165,18 @@ class SettingsPage extends ConsumerWidget {
 
   Widget _sectionHeader(String title, GcsThemeExtension gcs) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
       decoration: BoxDecoration(
         border: Border(
-            bottom: BorderSide(color: gcs.accent.withValues(alpha: 0.15))),
+            bottom: BorderSide(color: gcs.accent.withValues(alpha: 0.2))),
       ),
       child: Text(title,
           style: TextStyle(
             fontFamily: 'JetBrains Mono',
-            fontSize: 11,
+            fontSize: 13,
             fontWeight: FontWeight.bold,
             color: gcs.accent,
-            letterSpacing: 1,
+            letterSpacing: 1.1,
           )),
     );
   }
@@ -190,16 +189,17 @@ class SettingsPage extends ConsumerWidget {
         Text(title,
             style: TextStyle(
               fontFamily: 'JetBrains Mono',
-              fontSize: 9,
-              color: gcs.secText,
-              letterSpacing: 1.5,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: gcs.accent,
+              letterSpacing: 1.2,
             )),
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
             color: gcs.bg,
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: gcs.accent.withValues(alpha: 0.1)),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: gcs.accent.withValues(alpha: 0.15)),
           ),
           child: Column(children: children),
         ),
@@ -210,23 +210,23 @@ class SettingsPage extends ConsumerWidget {
   Widget _buildInfoCard(
       String title, String desc, IconData icon, GcsThemeExtension gcs) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: gcs.panels,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: gcs.accent.withValues(alpha: 0.1)),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: gcs.accent.withValues(alpha: 0.15)),
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: gcs.accent.withValues(alpha: 0.1),
+              color: gcs.accent.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(6),
             ),
-            child: Icon(icon, size: 18, color: gcs.accent),
+            child: Icon(icon, size: 22, color: gcs.accent),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 18),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -234,16 +234,17 @@ class SettingsPage extends ConsumerWidget {
                 Text(title,
                     style: TextStyle(
                       fontFamily: 'JetBrains Mono',
-                      fontSize: 12,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                       color: gcs.text,
                     )),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(desc,
                     style: TextStyle(
                       fontFamily: 'JetBrains Mono',
-                      fontSize: 10,
-                      color: gcs.secText,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white.withValues(alpha: 0.9), // Bright clear description text
                     )),
               ],
             ),
@@ -273,20 +274,22 @@ class _ToggleSetting extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: Row(
         children: [
           Expanded(
               child: Text(label,
                   style: TextStyle(
                     fontFamily: 'JetBrains Mono',
-                    fontSize: 11,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
                     color: gcs.text,
                   ))),
           Text(value ? trueLabel : falseLabel,
               style: TextStyle(
                 fontFamily: 'JetBrains Mono',
-                fontSize: 10,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
                 color: gcs.accent,
               )),
           const SizedBox(width: 8),
@@ -311,20 +314,21 @@ class _InfoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: Row(
         children: [
           Expanded(
               child: Text(label,
                   style: TextStyle(
                     fontFamily: 'JetBrains Mono',
-                    fontSize: 11,
-                    color: gcs.secText,
+                    fontSize: 12,
+                    color: Colors.white.withValues(alpha: 0.85),
                   ))),
           Text(value,
               style: TextStyle(
                 fontFamily: 'JetBrains Mono',
-                fontSize: 11,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
                 color: gcs.text,
               )),
         ],
@@ -350,7 +354,7 @@ class _ActionRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         child: Row(
           children: [
             Expanded(
@@ -358,8 +362,8 @@ class _ActionRow extends StatelessWidget {
                 label,
                 style: TextStyle(
                   fontFamily: 'JetBrains Mono',
-                  fontSize: 11,
-                  color: gcs.secText,
+                  fontSize: 12,
+                  color: Colors.white.withValues(alpha: 0.85),
                 ),
               ),
             ),
@@ -367,13 +371,13 @@ class _ActionRow extends StatelessWidget {
               value,
               style: TextStyle(
                 fontFamily: 'JetBrains Mono',
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: FontWeight.bold,
                 color: gcs.accent,
               ),
             ),
-            const SizedBox(width: 4),
-            Icon(LucideIcons.chevronRight, size: 14, color: gcs.accent),
+            const SizedBox(width: 6),
+            Icon(LucideIcons.chevronRight, size: 16, color: gcs.accent),
           ],
         ),
       ),
@@ -390,16 +394,17 @@ class _PlatformChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: gcs.accent.withValues(alpha: 0.08),
+        color: gcs.accent.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: gcs.accent.withValues(alpha: 0.2)),
+        border: Border.all(color: gcs.accent.withValues(alpha: 0.3)),
       ),
       child: Text(label,
           style: TextStyle(
             fontFamily: 'JetBrains Mono',
-            fontSize: 11,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
             color: gcs.accent,
           )),
     );

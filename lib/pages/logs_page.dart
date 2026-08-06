@@ -53,22 +53,23 @@ class LogsPage extends ConsumerWidget {
         children: [
           // Header
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
               color: gcs.panels,
               border: Border(
                   bottom:
-                      BorderSide(color: gcs.accent.withValues(alpha: 0.15))),
+                      BorderSide(color: gcs.accent.withValues(alpha: 0.2))),
             ),
             child: Row(children: [
-              Icon(LucideIcons.fileText, size: 16, color: gcs.accent),
-              const SizedBox(width: 8),
+              Icon(LucideIcons.fileText, size: 18, color: gcs.accent),
+              const SizedBox(width: 10),
               Text('FLIGHT LOGS & REPLAY',
                   style: TextStyle(
                     fontFamily: 'JetBrains Mono',
-                    fontSize: 12,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                     color: gcs.accent,
+                    letterSpacing: 1.1,
                   )),
               const Spacer(),
               _PillBtn(
@@ -77,7 +78,7 @@ class LogsPage extends ConsumerWidget {
                   color: gcs.accent,
                   gcs: gcs,
                   onTap: () {}),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               _PillBtn(
                   label: 'CLEAR',
                   icon: LucideIcons.trash2,
@@ -101,49 +102,58 @@ class LogsPage extends ConsumerWidget {
                         : AppColors.success;
 
                 return Container(
-                  margin: const EdgeInsets.only(bottom: 4),
+                  margin: const EdgeInsets.only(bottom: 6),
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
-                    color: gcs.panels.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(4),
+                    color: gcs.panels.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(6),
                     border: Border(
-                      left: BorderSide(color: color, width: 2),
+                      left: BorderSide(color: color, width: 3),
                     ),
                   ),
                   child: Row(children: [
-                    Text(log['time']!,
-                        style: TextStyle(
-                          fontFamily: 'JetBrains Mono',
-                          fontSize: 10,
-                          color: gcs.secText,
-                        )),
-                    const SizedBox(width: 12),
-                    Container(
-                      width: 36,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 4, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                      child: Text(log['level']!,
-                          textAlign: TextAlign.center,
+                    SizedBox(
+                      width: 90,
+                      child: Text(log['time']!,
                           style: TextStyle(
                             fontFamily: 'JetBrains Mono',
-                            fontSize: 9,
-                            color: color,
+                            fontSize: 12,
                             fontWeight: FontWeight.bold,
+                            color: gcs.accent,
                           )),
                     ),
                     const SizedBox(width: 12),
-                    Expanded(
-                        child: Text(log['msg']!,
+                    SizedBox(
+                      width: 55,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: color.withValues(alpha: 0.3)),
+                        ),
+                        child: Text(log['level']!,
+                            textAlign: TextAlign.center,
                             style: TextStyle(
                               fontFamily: 'JetBrains Mono',
-                              fontSize: 11,
-                              color: gcs.text,
-                            ))),
+                              fontSize: 10,
+                              color: color,
+                              fontWeight: FontWeight.bold,
+                            )),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(log['msg']!,
+                          style: TextStyle(
+                            fontFamily: 'JetBrains Mono',
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white.withValues(alpha: 0.95), // Highly visible bright white
+                          )),
+                    ),
                   ]),
                 );
               },
@@ -173,19 +183,20 @@ class _PillBtn extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
+          color: color.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(4),
           border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Row(children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 5),
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
           Text(label,
               style: TextStyle(
                 fontFamily: 'JetBrains Mono',
-                fontSize: 10,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
                 color: color,
               )),
         ]),

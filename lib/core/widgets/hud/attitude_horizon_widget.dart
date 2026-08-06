@@ -22,19 +22,9 @@ class AttitudeHorizonWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.5),
-            blurRadius: 10,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
       child: CustomPaint(
         size: Size(size, size),
         painter: _AttitudePainter(pitch: pitch, roll: roll),
@@ -118,9 +108,12 @@ class _AttitudePainter extends CustomPainter {
       final lineLen = isMajor ? 32.0 : 18.0;
 
       // Draw ladder bar with end caps
-      canvas.drawLine(Offset(-lineLen / 2, y), Offset(lineLen / 2, y), linePaint);
-      canvas.drawLine(Offset(-lineLen / 2, y), Offset(-lineLen / 2, y + (deg > 0 ? 4 : -4)), linePaint);
-      canvas.drawLine(Offset(lineLen / 2, y), Offset(lineLen / 2, y + (deg > 0 ? 4 : -4)), linePaint);
+      canvas.drawLine(
+          Offset(-lineLen / 2, y), Offset(lineLen / 2, y), linePaint);
+      canvas.drawLine(Offset(-lineLen / 2, y),
+          Offset(-lineLen / 2, y + (deg > 0 ? 4 : -4)), linePaint);
+      canvas.drawLine(Offset(lineLen / 2, y),
+          Offset(lineLen / 2, y + (deg > 0 ? 4 : -4)), linePaint);
 
       // Pitch angle text labels
       if (isMajor && deg.abs() <= 30) {
@@ -134,7 +127,8 @@ class _AttitudePainter extends CustomPainter {
         );
         textPainter.layout();
         textPainter.paint(canvas, Offset(lineLen / 2 + 4, y - 6));
-        textPainter.paint(canvas, Offset(-lineLen / 2 - textPainter.width - 4, y - 6));
+        textPainter.paint(
+            canvas, Offset(-lineLen / 2 - textPainter.width - 4, y - 6));
       }
     }
 
@@ -148,7 +142,10 @@ class _AttitudePainter extends CustomPainter {
 
     for (final rollDeg in [-60, -45, -30, -20, -10, 0, 10, 20, 30, 45, 60]) {
       final rad = (rollDeg - 90) * math.pi / 180.0;
-      final tickLen = (rollDeg == 0 || rollDeg.abs() == 30 || rollDeg.abs() == 60) ? 8.0 : 4.0;
+      final tickLen =
+          (rollDeg == 0 || rollDeg.abs() == 30 || rollDeg.abs() == 60)
+              ? 8.0
+              : 4.0;
       final start = Offset(
         center.dx + (radius - tickLen) * math.cos(rad),
         center.dy + (radius - tickLen) * math.sin(rad),

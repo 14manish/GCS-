@@ -113,17 +113,21 @@ class MapProviderDialog extends ConsumerWidget {
                                 children: [
                                   Row(
                                     children: [
-                                      Text(
-                                        p.name,
-                                        style: TextStyle(
-                                          fontFamily: 'JetBrains Mono',
-                                          fontSize: 12,
-                                          fontWeight: isSelected
-                                              ? FontWeight.bold
-                                              : FontWeight.w500,
-                                          color: isSelected
-                                              ? gcs.accent
-                                              : gcs.text,
+                                      Flexible(
+                                        child: Text(
+                                          p.name,
+                                          overflow: TextOverflow.ellipsis,
+                                          maxLines: 1,
+                                          style: TextStyle(
+                                            fontFamily: 'JetBrains Mono',
+                                            fontSize: 12,
+                                            fontWeight: isSelected
+                                                ? FontWeight.bold
+                                                : FontWeight.w500,
+                                            color: isSelected
+                                                ? gcs.accent
+                                                : gcs.text,
+                                          ),
                                         ),
                                       ),
                                       if (p.id == 'google_hybrid') ...[
